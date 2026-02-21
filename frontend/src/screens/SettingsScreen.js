@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Animated } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 
 export default function SettingsScreen({ navigation }) {
@@ -9,362 +10,304 @@ export default function SettingsScreen({ navigation }) {
   const [dailySummary, setDailySummary] = React.useState(true);
   const [burnoutWarnings, setBurnoutWarnings] = React.useState(true);
   const [habitStreaks, setHabitStreaks] = React.useState(false);
+  const [reminderCall, setReminderCall] = React.useState(false);
+
+  const isDark = theme === 'dark';
+  const colors = isDark
+    ? { bg1: '#0f0a1e', bg2: '#1a1333', bg3: '#1a1333', bg4: '#251d3d', card: 'rgba(37,29,61,0.9)', cardBorder: 'rgba(147,51,234,0.2)', text: '#f3e8ff', textSub: '#a78bca', settingBorder: '#2d2250' }
+    : { bg1: '#e8d5f5', bg2: '#f0e0f7', bg3: '#fce4ec', bg4: '#f8d7e8', card: 'rgba(255,255,255,0.5)', cardBorder: 'rgba(147,51,234,0.08)', text: '#1f2937', textSub: '#7c6f8a', settingBorder: '#f3f0f8' };
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 450, useNativeDriver: true }).start();
+  }, []);
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: () => {
-          logout();
-          navigation.replace('Login');
-        },
-      },
+      { text: 'Sign Out', style: 'destructive', onPress: () => { logout(); navigation.replace('Login'); } },
     ]);
   };
 
+  const SettingToggle = ({ label, description, value, onValueChange }) => (
+    <View style={[styles.settingItem, { borderBottomColor: colors.settingBorder }]}>
+      <View style={styles.settingInfo}>
+        <Text style={[styles.settingLabel, { color: colors.text }]}>{label}</Text>
+        <Text style={[styles.settingDescription, { color: colors.textSub }]}>{description}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: isDark ? '#3d2e5c' : '#d1d5db', true: '#c4b5fd' }}
+        thumbColor={value ? '#9333ea' : isDark ? '#6b5b8a' : '#f3f4f6'}
+      />
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Icon name="settings" size={32} color="#9333ea" />
-          <View style={styles.headerText}>
-            <Text style={styles.title}>Settings</Text>
-            <Text style={styles.subtitle}>Manage your preferences</Text>
-          </View>
-        </View>
+      <LinearGradient
+        colors={[colors.bg1, colors.bg2, colors.bg3, colors.bg4]}
+        locations={[0, 0.3, 0.7, 1]}
+        style={styles.gradient}
+      >
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
 
-        {/* Profile Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Icon name="user" size={24} color="#9333ea" />
-            <Text style={styles.cardTitle}>Profile</Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('EditProfile')}
-          >
-            <View style={styles.profileContent}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
-                </Text>
-              </View>
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{user?.name || 'User'}</Text>
-                <Text style={styles.profileEmail}>{user?.email || 'user@example.com'}</Text>
+            {/* ─── Header ─── */}
+            <View style={styles.header}>
+              <LinearGradient colors={isDark ? ['#2d2250', '#3d2e5c'] : ['#f3e8ff', '#ede9fe']} style={styles.headerIcon}>
+                <Icon name="settings" size={22} color="#9333ea" />
+              </LinearGradient>
+              <View style={styles.headerTextWrap}>
+                <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+                <Text style={[styles.subtitle, { color: colors.textSub }]}>Manage your preferences</Text>
               </View>
             </View>
-            <Icon name="chevron-right" size={24} color="#9ca3af" />
-          </TouchableOpacity>
-        </View>
 
-        {/* Reminder Settings */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Icon name="bell" size={24} color="#9333ea" />
-            <Text style={styles.cardTitle}>Reminder Settings</Text>
-          </View>
+            {/* ─── Profile ─── */}
+            <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <View style={styles.sectionHeader}>
+                <LinearGradient colors={isDark ? ['#2d2250', '#3d2e5c'] : ['#f3e8ff', '#ede9fe']} style={styles.smallIcon}>
+                  <Icon name="user" size={15} color="#9333ea" />
+                </LinearGradient>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile</Text>
+              </View>
 
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Task Reminders</Text>
-              <Text style={styles.settingDescription}>
-                Get notified about upcoming tasks
-              </Text>
+              <TouchableOpacity
+                style={styles.profileRow}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('EditProfile')}
+              >
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
+                </View>
+                <View style={styles.profileInfo}>
+                  <Text style={[styles.profileName, { color: colors.text }]}>{user?.name || 'User'}</Text>
+                  <Text style={[styles.profileEmail, { color: colors.textSub }]}>{user?.name || 'user'}</Text>
+                </View>
+                <Icon name="chevron-right" size={20} color={colors.textSub} />
+              </TouchableOpacity>
             </View>
-            <Switch
-              value={taskReminders}
-              onValueChange={setTaskReminders}
-              trackColor={{ false: '#d1d5db', true: '#c4b5fd' }}
-              thumbColor={taskReminders ? '#9333ea' : '#f3f4f6'}
-            />
-          </View>
 
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Daily Summary</Text>
-              <Text style={styles.settingDescription}>
-                Receive a daily overview of your tasks
-              </Text>
+            {/* ─── Permission ─── */}
+            <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <View style={styles.sectionHeader}>
+                <LinearGradient colors={isDark ? ['#2d2250', '#3d2e5c'] : ['#f3e8ff', '#ede9fe']} style={styles.smallIcon}>
+                  <Icon name="bell" size={15} color="#9333ea" />
+                </LinearGradient>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Permission</Text>
+              </View>
+
+              <SettingToggle
+                label="Task Reminders"
+                description="Get notified about upcoming tasks"
+                value={taskReminders}
+                onValueChange={setTaskReminders}
+              />
+              <SettingToggle
+                label="Daily Summary"
+                description="Receive a daily overview"
+                value={dailySummary}
+                onValueChange={setDailySummary}
+              />
+              <SettingToggle
+                label="Burnout Warnings"
+                description="Alert when workload is too high"
+                value={burnoutWarnings}
+                onValueChange={setBurnoutWarnings}
+              />
+              <SettingToggle
+                label="Habit Streak Reminders"
+                description="Keep on track with habits"
+                value={habitStreaks}
+                onValueChange={setHabitStreaks}
+              />
+              <SettingToggle
+                label="Reminder Call"
+                description="Allow phone call reminders for deadlines"
+                value={reminderCall}
+                onValueChange={setReminderCall}
+              />
             </View>
-            <Switch
-              value={dailySummary}
-              onValueChange={setDailySummary}
-              trackColor={{ false: '#d1d5db', true: '#c4b5fd' }}
-              thumbColor={dailySummary ? '#9333ea' : '#f3f4f6'}
-            />
-          </View>
 
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Burnout Warnings</Text>
-              <Text style={styles.settingDescription}>
-                Alert me when workload is too high
-              </Text>
+            {/* ─── Theme ─── */}
+            <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <View style={styles.sectionHeader}>
+                <LinearGradient colors={isDark ? ['#2d2250', '#3d2e5c'] : ['#fef3c7', '#fde68a']} style={styles.smallIcon}>
+                  <Icon name="moon" size={15} color={isDark ? '#a78bca' : '#d97706'} />
+                </LinearGradient>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Theme</Text>
+              </View>
+
+              <View style={[styles.settingItem, { borderBottomColor: 'transparent' }]}>
+                <View style={styles.settingInfo}>
+                  <Text style={[styles.settingLabel, { color: colors.text }]}>Dark Mode</Text>
+                  <Text style={[styles.settingDescription, { color: colors.textSub }]}>
+                    Currently: <Text style={{ color: '#9333ea', fontWeight: '600' }}>{isDark ? 'Dark' : 'Light'}</Text>
+                  </Text>
+                </View>
+                <Switch
+                  value={isDark}
+                  onValueChange={(v) => setTheme(v ? 'dark' : 'light')}
+                  trackColor={{ false: '#d1d5db', true: '#c4b5fd' }}
+                  thumbColor={isDark ? '#9333ea' : '#f3f4f6'}
+                />
+              </View>
+
+              <View style={styles.themeOptions}>
+                {/* Light Preview */}
+                <TouchableOpacity
+                  style={[styles.themeCard, !isDark && styles.themeCardActive]}
+                  activeOpacity={0.8}
+                  onPress={() => setTheme('light')}
+                >
+                  <View style={styles.themePreview}>
+                    <View style={styles.lightPreviewBar} />
+                    <View style={styles.lightPreviewLine1} />
+                    <View style={styles.lightPreviewLine2} />
+                  </View>
+                  <View style={styles.themeLabelRow}>
+                    {!isDark && <Icon name="check-circle" size={14} color="#9333ea" style={{ marginRight: 4 }} />}
+                    <Text style={[styles.themeLabel, !isDark && { color: '#9333ea' }]}>Light</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Dark Preview */}
+                <TouchableOpacity
+                  style={[styles.themeCard, isDark && styles.themeCardActive]}
+                  activeOpacity={0.8}
+                  onPress={() => setTheme('dark')}
+                >
+                  <View style={[styles.themePreview, { backgroundColor: '#1a1333' }]}>
+                    <View style={[styles.lightPreviewBar, { backgroundColor: '#7c3aed' }]} />
+                    <View style={[styles.lightPreviewLine1, { backgroundColor: '#3d2e5c' }]} />
+                    <View style={[styles.lightPreviewLine2, { backgroundColor: '#2d2250' }]} />
+                  </View>
+                  <View style={styles.themeLabelRow}>
+                    {isDark && <Icon name="check-circle" size={14} color="#9333ea" style={{ marginRight: 4 }} />}
+                    <Text style={[styles.themeLabel, isDark && { color: '#9333ea' }]}>Dark</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
-            <Switch
-              value={burnoutWarnings}
-              onValueChange={setBurnoutWarnings}
-              trackColor={{ false: '#d1d5db', true: '#c4b5fd' }}
-              thumbColor={burnoutWarnings ? '#9333ea' : '#f3f4f6'}
-            />
-          </View>
 
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Habit Streak Reminders</Text>
-              <Text style={styles.settingDescription}>
-                Keep me on track with my habits
-              </Text>
-            </View>
-            <Switch
-              value={habitStreaks}
-              onValueChange={setHabitStreaks}
-              trackColor={{ false: '#d1d5db', true: '#c4b5fd' }}
-              thumbColor={habitStreaks ? '#9333ea' : '#f3f4f6'}
-            />
-          </View>
-        </View>
-
-        {/* Theme Settings */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Icon name="moon" size={24} color="#9333ea" />
-            <Text style={styles.cardTitle}>Theme</Text>
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Dark Mode</Text>
-              <Text style={styles.settingDescription}>Switch to dark theme</Text>
-            </View>
-            <Switch
-              value={theme === 'dark'}
-              onValueChange={(value) => setTheme(value ? 'dark' : 'light')}
-              trackColor={{ false: '#d1d5db', true: '#c4b5fd' }}
-              thumbColor={theme === 'dark' ? '#9333ea' : '#f3f4f6'}
-            />
-          </View>
-
-          <View style={styles.themeOptions}>
+            {/* ─── Sign Out ─── */}
             <TouchableOpacity
-              style={[
-                styles.themeOption,
-                theme === 'light' && styles.themeOptionActive,
-              ]}
-              onPress={() => setTheme('light')}
+              style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
+              activeOpacity={0.7}
+              onPress={handleLogout}
             >
-              <View style={styles.themePreview}>
-                <View style={styles.lightThemePreview} />
+              <View style={styles.logoutRow}>
+                <View style={styles.logoutIconWrap}>
+                  <Icon name="log-out" size={18} color="#ef4444" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.logoutTitle}>Sign Out</Text>
+                  <Text style={[styles.logoutDesc, { color: colors.textSub }]}>Sign out of your account</Text>
+                </View>
               </View>
-              <Text style={styles.themeLabel}>Light</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.themeOption,
-                theme === 'dark' && styles.themeOptionActive,
-              ]}
-              onPress={() => setTheme('dark')}
-            >
-              <View style={styles.themePreview}>
-                <View style={styles.darkThemePreview} />
-              </View>
-              <Text style={styles.themeLabel}>Dark</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Logout */}
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <View style={styles.logoutContent}>
-              <Icon name="log-out" size={24} color="#ef4444" />
-              <View style={styles.logoutInfo}>
-                <Text style={styles.logoutTitle}>Sign Out</Text>
-                <Text style={styles.logoutDescription}>Sign out of your account</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+            <View style={{ height: 30 }} />
+          </Animated.View>
+        </ScrollView>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#eff6ff',
-  },
-  scrollView: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  gradient: { flex: 1 },
+  scrollView: { flex: 1 },
+
+  /* ── Header ── */
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 22, paddingTop: 56, paddingBottom: 10,
   },
-  headerText: {
-    marginLeft: 15,
+  headerIcon: {
+    width: 44, height: 44, borderRadius: 14,
+    justifyContent: 'center', alignItems: 'center',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
+  headerTextWrap: { marginLeft: 14 },
+  title: { fontSize: 26, fontWeight: '800' },
+  subtitle: { fontSize: 13, marginTop: 2 },
+
+  /* ── Section Card ── */
+  sectionCard: {
+    marginHorizontal: 20, marginTop: 14, padding: 18,
+    borderRadius: 18, borderWidth: 1,
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 2,
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  smallIcon: {
+    width: 30, height: 30, borderRadius: 15,
+    justifyContent: 'center', alignItems: 'center', marginRight: 9,
   },
-  card: {
-    backgroundColor: '#fff',
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 10,
-    color: '#1f2937',
-  },
-  profileButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  profileContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+  sectionTitle: { fontSize: 17, fontWeight: '700' },
+
+  /* ── Profile ── */
+  profileRow: {
+    flexDirection: 'row', alignItems: 'center',
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 52, height: 52, borderRadius: 26,
     backgroundColor: '#9333ea',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
+    justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#9333ea', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 5, elevation: 4,
   },
-  avatarText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  profileEmail: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 2,
-  },
+  avatarText: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
+  profileInfo: { flex: 1, marginLeft: 14 },
+  profileName: { fontSize: 17, fontWeight: '700' },
+  profileEmail: { fontSize: 13, marginTop: 1 },
+
+  /* ── Settings Toggle ── */
   settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
   },
-  settingInfo: {
-    flex: 1,
-    marginRight: 15,
+  settingInfo: { flex: 1, marginRight: 12 },
+  settingLabel: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
+  settingDescription: { fontSize: 12 },
+
+  /* ── Theme ── */
+  themeOptions: { flexDirection: 'row', gap: 14, marginTop: 10 },
+  themeCard: {
+    flex: 1, padding: 10, borderRadius: 14,
+    borderWidth: 2, borderColor: '#e5e7eb', alignItems: 'center',
   },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  settingDescription: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  themeOptions: {
-    flexDirection: 'row',
-    gap: 15,
-    marginTop: 15,
-  },
-  themeOption: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    alignItems: 'center',
-  },
-  themeOptionActive: {
-    borderColor: '#9333ea',
-    backgroundColor: '#f3e8ff',
-  },
+  themeCardActive: { borderColor: '#9333ea', backgroundColor: 'rgba(147,51,234,0.06)' },
   themePreview: {
-    width: '100%',
-    height: 80,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 10,
+    width: '100%', height: 70, borderRadius: 10,
+    backgroundColor: '#f8f9fa', overflow: 'hidden',
+    justifyContent: 'center', alignItems: 'center', padding: 10,
+    marginBottom: 8,
   },
-  lightThemePreview: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  lightPreviewBar: {
+    width: '80%', height: 8, borderRadius: 4,
+    backgroundColor: '#9333ea', marginBottom: 8,
   },
-  darkThemePreview: {
-    flex: 1,
-    backgroundColor: '#1f2937',
-    borderWidth: 1,
-    borderColor: '#374151',
+  lightPreviewLine1: {
+    width: '70%', height: 5, borderRadius: 3,
+    backgroundColor: '#d1d5db', marginBottom: 5, alignSelf: 'flex-start',
   },
-  themeLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
+  lightPreviewLine2: {
+    width: '50%', height: 5, borderRadius: 3,
+    backgroundColor: '#e5e7eb', alignSelf: 'flex-start',
   },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  themeLabelRow: { flexDirection: 'row', alignItems: 'center' },
+  themeLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
+
+  /* ── Logout ── */
+  logoutRow: { flexDirection: 'row', alignItems: 'center' },
+  logoutIconWrap: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: '#fef2f2',
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
-  logoutContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoutInfo: {
-    marginLeft: 15,
-  },
-  logoutTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  logoutDescription: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-  },
+  logoutTitle: { fontSize: 16, fontWeight: '700', color: '#ef4444' },
+  logoutDesc: { fontSize: 12, marginTop: 1 },
 });

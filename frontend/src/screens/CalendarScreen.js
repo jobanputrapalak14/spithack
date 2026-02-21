@@ -1,94 +1,120 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 
 export default function CalendarScreen({ navigation }) {
-  const { tasks } = useApp();
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 1)); // February 2026
+  const { tasks, theme } = useApp();
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const isDark = theme === 'dark';
+  const colors = isDark
+    ? {
+      bg: ['#0f0a1e', '#1a1333', '#1a1333', '#251d3d'],
+      headerIcon: ['#2d2250', '#3d2e5c'],
+      text: '#f3e8ff',
+      textSub: '#a78bca',
+      calendarCard: 'rgba(37,29,61,0.9)',
+      monthText: '#f3e8ff',
+      navBtnBorder: '#3d2e5c',
+      navBtnIcon: '#a78bca',
+      legendText: '#a78bca',
+      dayName: '#6b5b8a',
+      dayNumber: '#c4b5fd',
+      todayBorder: '#9333ea',
+      todayNumber: '#a855f7',
+    }
+    : {
+      bg: ['#e8d5f5', '#f0e0f7', '#fce4ec', '#f8d7e8'],
+      headerIcon: ['#f3e8ff', '#ede9fe'],
+      text: '#1f2937',
+      textSub: '#7c6f8a',
+      calendarCard: 'rgba(255,255,255,0.88)',
+      monthText: '#1f2937',
+      navBtnBorder: '#e5e7eb',
+      navBtnIcon: '#6b7280',
+      legendText: '#6b7280',
+      dayName: '#9ca3af',
+      dayNumber: '#374151',
+      todayBorder: '#9333ea',
+      todayNumber: '#7c3aed',
+    };
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1, duration: 450, useNativeDriver: true,
+    }).start();
+  }, []);
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-    return { daysInMonth, startingDayOfWeek };
+    return { daysInMonth: lastDay.getDate(), startingDayOfWeek: firstDay.getDay() };
   };
 
-  const getTasksForDate = (date) => {
-    return tasks.filter((task) => {
-      const taskDate = new Date(task.deadline);
-      return (
-        taskDate.getDate() === date.getDate() &&
-        taskDate.getMonth() === date.getMonth() &&
-        taskDate.getFullYear() === date.getFullYear()
-      );
+  const getTasksForDate = (date) =>
+    tasks.filter((task) => {
+      const td = new Date(task.deadline);
+      return td.getDate() === date.getDate() && td.getMonth() === date.getMonth() && td.getFullYear() === date.getFullYear();
     });
-  };
 
-  const getWorkloadColor = (date) => {
+  const getWorkloadLevel = (date) => {
     const dayTasks = getTasksForDate(date);
     const count = dayTasks.length;
-    const highPriority = dayTasks.filter((t) => t.priority === 'high').length;
-
-    if (count === 0) return '#f9fafb';
-    if (highPriority >= 2 || count >= 4) return '#fee2e2'; // Heavy - Red
-    if (highPriority >= 1 || count >= 2) return '#fed7aa'; // Medium - Orange
-    return '#dcfce7'; // Light - Green
+    const high = dayTasks.filter((t) => t.priority === 'high').length;
+    if (count === 0) return 'none';
+    if (high >= 2 || count >= 4) return 'heavy';
+    if (high >= 1 || count >= 2) return 'medium';
+    return 'light';
   };
+
+  const workloadColors = {
+    none: 'transparent',
+    heavy: '#ef4444',
+    medium: '#f97316',
+    light: '#22c55e',
+  };
+
+  const workloadBg = isDark
+    ? { none: 'transparent', heavy: 'rgba(239,68,68,0.15)', medium: 'rgba(249,115,22,0.15)', light: 'rgba(34,197,94,0.15)' }
+    : { none: 'transparent', heavy: '#fee2e2', medium: '#fff7ed', light: '#dcfce7' };
 
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
-
-  const previousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
-  };
-
-  const monthNames = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ];
-
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  const renderCalendarDay = (day) => {
+  const previousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+
+  const now = new Date();
+  const isToday = (day) =>
+    day === now.getDate() && currentDate.getMonth() === now.getMonth() && currentDate.getFullYear() === now.getFullYear();
+
+  const renderDay = (day) => {
     const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
     const dayTasks = getTasksForDate(date);
-    const bgColor = getWorkloadColor(date);
-    const isToday =
-      date.getDate() === new Date().getDate() &&
-      date.getMonth() === new Date().getMonth() &&
-      date.getFullYear() === new Date().getFullYear();
+    const level = getWorkloadLevel(date);
+    const today = isToday(day);
 
     return (
       <TouchableOpacity
         key={day}
         style={[
           styles.dayCell,
-          { backgroundColor: bgColor },
-          isToday && styles.todayCell,
+          level !== 'none' && { backgroundColor: workloadBg[level] },
+          today && [styles.todayCell, { borderColor: colors.todayBorder }],
         ]}
+        activeOpacity={0.6}
         onPress={() => navigation.navigate('Workspace', { date: date.toISOString() })}
       >
-        <Text style={[styles.dayNumber, isToday && styles.todayNumber]}>{day}</Text>
+        <Text style={[styles.dayNumber, { color: colors.dayNumber }, today && { color: colors.todayNumber, fontWeight: '800' }]}>{day}</Text>
         {dayTasks.length > 0 && (
-          <View style={styles.taskBadge}>
-            <Text style={styles.taskCount}>{dayTasks.length}</Text>
+          <View style={[styles.taskDot, { backgroundColor: workloadColors[level] }]}>
+            <Text style={styles.taskDotText}>{dayTasks.length}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -97,203 +123,145 @@ export default function CalendarScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Icon name="calendar" size={32} color="#9333ea" />
-          <View style={styles.headerText}>
-            <Text style={styles.title}>Calendar</Text>
-            <Text style={styles.subtitle}>Visualize your workload</Text>
-          </View>
-        </View>
+      <LinearGradient
+        colors={colors.bg}
+        locations={[0, 0.3, 0.7, 1]}
+        style={styles.gradient}
+      >
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
 
-        {/* Calendar Card */}
-        <View style={styles.calendarCard}>
-          {/* Month Navigation */}
-          <View style={styles.monthHeader}>
-            <Text style={styles.monthText}>
-              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </Text>
-            <View style={styles.navButtons}>
-              <TouchableOpacity style={styles.navButton} onPress={previousMonth}>
-                <Icon name="chevron-left" size={20} color="#6b7280" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.navButton} onPress={nextMonth}>
-                <Icon name="chevron-right" size={20} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Legend */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.legend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
-              <Text style={styles.legendText}>Heavy</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#f97316' }]} />
-              <Text style={styles.legendText}>Medium</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
-              <Text style={styles.legendText}>Light</Text>
-            </View>
-          </ScrollView>
-
-          {/* Day Names */}
-          <View style={styles.dayNamesRow}>
-            {dayNames.map((name) => (
-              <View key={name} style={styles.dayNameCell}>
-                <Text style={styles.dayName}>{name}</Text>
+            {/* ─── Header ─── */}
+            <View style={styles.header}>
+              <LinearGradient colors={colors.headerIcon} style={styles.headerIcon}>
+                <Icon name="calendar" size={22} color="#9333ea" />
+              </LinearGradient>
+              <View style={styles.headerTextWrap}>
+                <Text style={[styles.title, { color: colors.text }]}>Calendar</Text>
+                <Text style={[styles.subtitle, { color: colors.textSub }]}>Visualize your workload</Text>
               </View>
-            ))}
-          </View>
+            </View>
 
-          {/* Calendar Grid */}
-          <View style={styles.calendarGrid}>
-            {/* Empty cells before month starts */}
-            {Array.from({ length: startingDayOfWeek }).map((_, index) => (
-              <View key={`empty-${index}`} style={styles.dayCell} />
-            ))}
+            {/* ─── Calendar Card ─── */}
+            <View style={[styles.calendarCard, { backgroundColor: colors.calendarCard }]}>
 
-            {/* Calendar days */}
-            {Array.from({ length: daysInMonth }).map((_, index) =>
-              renderCalendarDay(index + 1)
-            )}
-          </View>
-        </View>
-      </ScrollView>
+              {/* Month Nav */}
+              <View style={styles.monthHeader}>
+                <Text style={[styles.monthText, { color: colors.monthText }]}>
+                  {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                </Text>
+                <View style={styles.navButtons}>
+                  <TouchableOpacity style={[styles.navButton, { borderColor: colors.navBtnBorder }]} onPress={previousMonth} activeOpacity={0.7}>
+                    <Icon name="chevron-left" size={18} color={colors.navBtnIcon} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.navButton, { borderColor: colors.navBtnBorder }]} onPress={nextMonth} activeOpacity={0.7}>
+                    <Icon name="chevron-right" size={18} color={colors.navBtnIcon} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Legend */}
+              <View style={styles.legend}>
+                {[
+                  { label: 'Heavy', color: '#ef4444' },
+                  { label: 'Medium', color: '#f97316' },
+                  { label: 'Light', color: '#22c55e' },
+                ].map((item) => (
+                  <View key={item.label} style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                    <Text style={[styles.legendText, { color: colors.legendText }]}>{item.label}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Day Headers */}
+              <View style={styles.dayNamesRow}>
+                {dayNames.map((name) => (
+                  <View key={name} style={styles.dayNameCell}>
+                    <Text style={[styles.dayName, { color: colors.dayName }]}>{name}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Grid */}
+              <View style={styles.calendarGrid}>
+                {Array.from({ length: startingDayOfWeek }).map((_, i) => (
+                  <View key={`e-${i}`} style={styles.dayCell} />
+                ))}
+                {Array.from({ length: daysInMonth }).map((_, i) => renderDay(i + 1))}
+              </View>
+            </View>
+
+            <View style={{ height: 30 }} />
+          </Animated.View>
+        </ScrollView>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#eff6ff',
-  },
-  scrollView: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  gradient: { flex: 1 },
+  scrollView: { flex: 1 },
+
+  /* ── Header ── */
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 22, paddingTop: 56, paddingBottom: 10,
   },
-  headerText: {
-    marginLeft: 15,
+  headerIcon: {
+    width: 44, height: 44, borderRadius: 14,
+    justifyContent: 'center', alignItems: 'center',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 2,
-  },
+  headerTextWrap: { marginLeft: 14 },
+  title: { fontSize: 26, fontWeight: '800' },
+  subtitle: { fontSize: 13, marginTop: 2 },
+
+  /* ── Calendar Card ── */
   calendarCard: {
-    backgroundColor: '#fff',
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    marginHorizontal: 20, marginTop: 14, padding: 20,
+    borderRadius: 20,
+    shadowColor: '#9333ea', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
   },
   monthHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 16,
   },
-  monthText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  navButtons: {
-    flexDirection: 'row',
-    gap: 10,
-  },
+  monthText: { fontSize: 20, fontWeight: '800' },
+  navButtons: { flexDirection: 'row', gap: 8 },
   navButton: {
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    width: 34, height: 34, borderRadius: 10,
+    borderWidth: 1.5,
+    justifyContent: 'center', alignItems: 'center',
   },
-  legend: {
-    marginBottom: 20,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 6,
-  },
-  legendText: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  dayNamesRow: {
-    flexDirection: 'row',
-    marginBottom: 10,
-  },
-  dayNameCell: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  dayName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
+
+  legend: { flexDirection: 'row', marginBottom: 18, gap: 18 },
+  legendItem: { flexDirection: 'row', alignItems: 'center' },
+  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 5 },
+  legendText: { fontSize: 12, fontWeight: '500' },
+
+  dayNamesRow: { flexDirection: 'row', marginBottom: 6 },
+  dayNameCell: { flex: 1, alignItems: 'center', paddingVertical: 6 },
+  dayName: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+
+  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+
   dayCell: {
-    width: '14.28%',
-    aspectRatio: 1,
-    padding: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-    marginBottom: 5,
+    width: '14.28%', aspectRatio: 1,
+    justifyContent: 'center', alignItems: 'center',
+    borderRadius: 10, marginBottom: 4,
   },
   todayCell: {
     borderWidth: 2,
-    borderColor: '#9333ea',
   },
-  dayNumber: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
+  dayNumber: { fontSize: 15, fontWeight: '600' },
+
+  taskDot: {
+    width: 18, height: 18, borderRadius: 9,
+    justifyContent: 'center', alignItems: 'center',
+    marginTop: 1,
   },
-  todayNumber: {
-    color: '#9333ea',
-  },
-  taskBadge: {
-    backgroundColor: '#9333ea',
-    borderRadius: 8,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    marginTop: 2,
-  },
-  taskCount: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
+  taskDotText: { color: '#fff', fontSize: 9, fontWeight: 'bold' },
 });

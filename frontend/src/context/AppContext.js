@@ -1,12 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-
-// ⚠️ UPDATE THIS URL based on your environment:
-// - Android Emulator: 'http://10.0.2.2:8000/api'
-// - iOS Simulator: 'http://localhost:8000/api'
-// - Physical Device: 'http://<YOUR_COMPUTER_WIFI_IP>:8000/api'
-const API_URL = 'http://10.10.53.74:8000/api';
+import { API_URL } from '../config/api';
 
 const AppContext = createContext(undefined);
 
@@ -37,8 +31,10 @@ export function AppProvider({ children }) {
 
       // 2. Fetch Tasks from FastAPI Backend
       try {
-        const response = await axios.get(`${API_URL}/tasks/`);
-        const fetchedTasks = response.data.map((t) => ({
+        const response = await fetch(`${API_URL}/tasks/`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const fetchedTasks = data.map((t) => ({
           ...t,
           deadline: new Date(t.deadline),
           createdAt: new Date(t.created_at || t.createdAt),
@@ -98,15 +94,21 @@ export function AppProvider({ children }) {
         ...task,
         deadline: task.deadline instanceof Date ? task.deadline.toISOString() : task.deadline
       };
-      
-      const response = await axios.post(`${API_URL}/tasks/`, payload);
-      
+
+      const response = await fetch(`${API_URL}/tasks/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+
       const newTask = {
-        ...response.data,
-        deadline: new Date(response.data.deadline),
-        createdAt: new Date(response.data.created_at || new Date()),
+        ...data,
+        deadline: new Date(data.deadline),
+        createdAt: new Date(data.created_at || new Date()),
       };
-      
+
       setTasks((prev) => [...prev, newTask]);
     } catch (error) {
       console.error('Failed to add task via API:', error);
@@ -125,12 +127,17 @@ export function AppProvider({ children }) {
       if (payload.deadline && payload.deadline instanceof Date) {
         payload.deadline = payload.deadline.toISOString();
       }
-      
-      await axios.patch(`${API_URL}/tasks/${id}`, payload);
+
+      const response = await fetch(`${API_URL}/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
     } catch (error) {
       console.error('Failed to update task via API:', error);
       // If API fails, reload from server to fix state mismatch
-      loadData(); 
+      loadData();
     }
   };
 
@@ -140,7 +147,8 @@ export function AppProvider({ children }) {
     setTasks((prev) => prev.filter((task) => task.id !== id));
 
     try {
-      await axios.delete(`${API_URL}/tasks/${id}`);
+      const response = await fetch(`${API_URL}/tasks/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
     } catch (error) {
       console.error('Failed to delete task via API:', error);
       loadData(); // Revert on failure

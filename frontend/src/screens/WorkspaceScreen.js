@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,69 @@ import {
   TextInput,
   StyleSheet,
   Alert,
+  Animated,
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 
 export default function WorkspaceScreen({ route, navigation }) {
   const { date } = route.params;
-  const { tasks, updateTask, deleteTask, notes, addNote } = useApp();
+  const { tasks, updateTask, deleteTask, notes, addNote, theme } = useApp();
   const [noteContent, setNoteContent] = useState('');
+
+  const isDark = theme === 'dark';
+  const colors = isDark
+    ? {
+      bg: ['#0f0a1e', '#1a1333', '#1a1333', '#251d3d'],
+      text: '#f3e8ff',
+      textSub: '#a78bca',
+      card: 'rgba(37,29,61,0.9)',
+      cardBorder: 'rgba(147,51,234,0.2)',
+      progressCard: 'rgba(37,29,61,0.9)',
+      progressBg: '#2d2250',
+      taskCard: 'rgba(37,29,61,0.8)',
+      taskBorder: 'rgba(147,51,234,0.15)',
+      sectionIcon: ['#2d2250', '#3d2e5c'],
+      noteIcon: ['#3d2e1c', '#4a3520'],
+      inputBg: 'rgba(37,29,61,0.8)',
+      inputBorder: 'rgba(147,51,234,0.2)',
+      inputText: '#f3e8ff',
+      placeholder: '#6b5b8a',
+      noteCard: 'rgba(55,40,30,0.6)',
+      noteBorder: '#4a3520',
+      categoryTag: { borderColor: '#3d2e5c', backgroundColor: 'rgba(37,29,61,0.9)' },
+      categoryText: '#c4b5fd',
+    }
+    : {
+      bg: ['#e8d5f5', '#f0e0f7', '#fce4ec', '#f8d7e8'],
+      text: '#1f2937',
+      textSub: '#7c6f8a',
+      card: 'rgba(255,255,255,0.5)',
+      cardBorder: 'rgba(147,51,234,0.08)',
+      progressCard: 'rgba(255,255,255,0.88)',
+      progressBg: '#e5e7eb',
+      taskCard: 'rgba(255,255,255,0.8)',
+      taskBorder: 'rgba(147,51,234,0.06)',
+      sectionIcon: ['#f3e8ff', '#ede9fe'],
+      noteIcon: ['#fef3c7', '#fde68a'],
+      inputBg: 'rgba(255,255,255,0.75)',
+      inputBorder: 'rgba(147,51,234,0.1)',
+      inputText: '#1f2937',
+      placeholder: '#a1a1aa',
+      noteCard: '#fef9ee',
+      noteBorder: '#fde68a',
+      categoryTag: { borderColor: '#d1d5db', backgroundColor: 'rgba(255,255,255,0.9)' },
+      categoryText: '#4b5563',
+    };
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1, duration: 400, useNativeDriver: true,
+    }).start();
+  }, []);
 
   const workspaceDate = date ? new Date(date) : new Date();
   const dayTasks = tasks.filter((task) => {
@@ -46,321 +101,284 @@ export default function WorkspaceScreen({ route, navigation }) {
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'high':
-        return '#ef4444';
-      case 'medium':
-        return '#f97316';
-      case 'low':
-        return '#22c55e';
-      default:
-        return '#6b7280';
+      case 'high': return '#ef4444';
+      case 'medium': return '#f97316';
+      case 'low': return '#22c55e';
+      default: return '#6b7280';
     }
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Date Header */}
-        <View style={styles.dateHeader}>
-          <Text style={styles.dateText}>
-            {workspaceDate.toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
-          </Text>
-        </View>
+      <LinearGradient
+        colors={colors.bg}
+        locations={[0, 0.3, 0.7, 1]}
+        style={styles.gradient}
+      >
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <Animated.View style={{ opacity: fadeAnim }}>
 
-        {/* Progress Card */}
-        <View style={styles.progressCard}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressTitle}>Daily Progress</Text>
-            <Text style={styles.progressText}>
-              {completedTasks} / {dayTasks.length} completed
-            </Text>
-          </View>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${progress}%` }]} />
-          </View>
-        </View>
-
-        {/* Tasks */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitle}>
-              <Icon name="check-square" size={24} color="#9333ea" />
-              <Text style={styles.cardTitleText}>Tasks</Text>
+            {/* ─── Date Header ─── */}
+            <View style={styles.dateHeader}>
+              <Text style={[styles.dateText, { color: colors.text }]}>
+                {workspaceDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </Text>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate('SmartCapture')}>
-              <Icon name="plus-circle" size={24} color="#9333ea" />
-            </TouchableOpacity>
-          </View>
 
-          {dayTasks.length === 0 ? (
-            <Text style={styles.emptyText}>No tasks for this day</Text>
-          ) : (
-            dayTasks.map((task) => (
-              <View key={task.id} style={styles.taskItem}>
-                <TouchableOpacity
-                  onPress={() => updateTask(task.id, { completed: !task.completed })}
-                >
-                  <Icon
-                    name={task.completed ? 'check-square' : 'square'}
-                    size={24}
-                    color={task.completed ? '#22c55e' : '#9ca3af'}
-                  />
-                </TouchableOpacity>
+            {/* ─── Daily Progress ─── */}
+            <View style={[styles.progressCard, { backgroundColor: colors.progressCard }]}>
+              <View style={styles.progressHeader}>
+                <Text style={[styles.progressTitle, { color: colors.text }]}>Daily Progress</Text>
+                <Text style={[styles.progressText, { color: colors.textSub }]}>
+                  {completedTasks} / {dayTasks.length} completed
+                </Text>
+              </View>
+              <View style={[styles.progressBarBg, { backgroundColor: colors.progressBg }]}>
+                <LinearGradient
+                  colors={['#a855f7', '#7c3aed']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.progressBarFill, { width: `${Math.max(progress, 2)}%` }]}
+                />
+              </View>
+            </View>
 
-                <View style={styles.taskContent}>
-                  <Text
-                    style={[styles.taskTitle, task.completed && styles.taskTitleCompleted]}
-                  >
-                    {task.title}
-                  </Text>
-                  {task.description && (
-                    <Text style={styles.taskDescription}>{task.description}</Text>
-                  )}
-                  <View style={styles.taskTags}>
-                    <View
-                      style={[
-                        styles.priorityTag,
-                        { backgroundColor: getPriorityColor(task.priority) },
-                      ]}
-                    >
-                      <Text style={styles.tagText}>{task.priority}</Text>
-                    </View>
-                    <View style={styles.categoryTag}>
-                      <Text style={styles.categoryText}>{task.category}</Text>
-                    </View>
-                  </View>
+            {/* ─── Tasks ─── */}
+            <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleRow}>
+                  <LinearGradient colors={colors.sectionIcon} style={styles.sectionIcon}>
+                    <Icon name="check-square" size={16} color="#9333ea" />
+                  </LinearGradient>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks</Text>
                 </View>
-
                 <TouchableOpacity
-                  onPress={() => {
-                    Alert.alert(
-                      'Delete Task',
-                      'Are you sure you want to delete this task?',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Delete', onPress: () => deleteTask(task.id), style: 'destructive' },
-                      ]
-                    );
-                  }}
+                  onPress={() => navigation.navigate('SmartCapture')}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Icon name="trash-2" size={20} color="#ef4444" />
+                  <Icon name="plus-circle" size={24} color="#9333ea" />
                 </TouchableOpacity>
               </View>
-            ))
-          )}
-        </View>
 
-        {/* Notes */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitle}>
-              <Icon name="file-text" size={24} color="#9333ea" />
-              <Text style={styles.cardTitleText}>Notes</Text>
+              {dayTasks.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Icon name="inbox" size={32} color={isDark ? '#6b5b8a' : '#c4b5d4'} />
+                  <Text style={[styles.emptyText, { color: colors.textSub }]}>No tasks for this day</Text>
+                </View>
+              ) : (
+                dayTasks.map((task) => (
+                  <View key={task.id} style={[styles.taskCard, { backgroundColor: colors.taskCard, borderColor: colors.taskBorder }]}>
+                    <View style={styles.taskTopRow}>
+                      <TouchableOpacity
+                        onPress={() => updateTask(task.id, { completed: !task.completed })}
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Icon
+                          name={task.completed ? 'check-square' : 'square'}
+                          size={24}
+                          color={task.completed ? '#22c55e' : isDark ? '#6b5b8a' : '#c4b5d4'}
+                        />
+                      </TouchableOpacity>
+
+                      <Text
+                        style={[
+                          styles.taskTitle,
+                          { color: colors.text },
+                          task.completed && styles.taskTitleCompleted,
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {task.title}
+                      </Text>
+
+                      <TouchableOpacity
+                        onPress={() => {
+                          Alert.alert(
+                            'Delete Task',
+                            'Are you sure you want to delete this task?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Delete', onPress: () => deleteTask(task.id), style: 'destructive' },
+                            ]
+                          );
+                        }}
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Icon name="trash-2" size={20} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.taskTags}>
+                      <View style={[styles.priorityTag, { backgroundColor: getPriorityColor(task.priority) }]}>
+                        <Text style={styles.tagText}>
+                          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                        </Text>
+                      </View>
+                      <View style={[styles.categoryTag, colors.categoryTag]}>
+                        <Text style={[styles.categoryText, { color: colors.categoryText }]}>
+                          {task.category.charAt(0).toUpperCase() + task.category.slice(1)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))
+              )}
             </View>
-          </View>
 
-          <TextInput
-            style={styles.noteInput}
-            placeholder="Add a note for this day..."
-            value={noteContent}
-            onChangeText={setNoteContent}
-            multiline
-            numberOfLines={4}
-          />
-          <TouchableOpacity style={styles.addNoteButton} onPress={handleAddNote}>
-            <Text style={styles.addNoteButtonText}>Save Note</Text>
-          </TouchableOpacity>
+            {/* ─── Notes ─── */}
+            <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleRow}>
+                  <LinearGradient colors={colors.noteIcon} style={styles.sectionIcon}>
+                    <Icon name="file-text" size={16} color="#d97706" />
+                  </LinearGradient>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes</Text>
+                </View>
+              </View>
 
-          {dayNotes.map((note) => (
-            <View key={note.id} style={styles.noteCard}>
-              <Text style={styles.noteText}>{note.content}</Text>
+              <TextInput
+                style={[styles.noteInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.inputText }]}
+                placeholder="Add a note for this day..."
+                placeholderTextColor={colors.placeholder}
+                value={noteContent}
+                onChangeText={setNoteContent}
+                multiline
+                numberOfLines={4}
+              />
+
+              <TouchableOpacity activeOpacity={0.85} onPress={handleAddNote}>
+                <LinearGradient
+                  colors={['#c084fc', '#9333ea', '#7c3aed']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.saveNoteButton}
+                >
+                  <Text style={styles.saveNoteButtonText}>Save Note</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {dayNotes.map((note) => (
+                <View key={note.id} style={[styles.noteCard, { backgroundColor: colors.noteCard, borderColor: colors.noteBorder }]}>
+                  <Icon name="bookmark" size={14} color="#d97706" style={{ marginRight: 8, marginTop: 2 }} />
+                  <Text style={[styles.noteText, { color: colors.text }]}>{note.content}</Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-      </ScrollView>
+
+            <View style={{ height: 30 }} />
+          </Animated.View>
+        </ScrollView>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#eff6ff',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  dateHeader: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  dateText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
+  container: { flex: 1 },
+  gradient: { flex: 1 },
+  scrollView: { flex: 1 },
+
+  /* ── Date Header ── */
+  dateHeader: { paddingHorizontal: 22, paddingTop: 12, paddingBottom: 6 },
+  dateText: { fontSize: 18, fontWeight: 'bold' },
+
+  /* ── Progress ── */
   progressCard: {
-    backgroundColor: '#fff',
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    marginHorizontal: 20, marginTop: 12, padding: 18,
+    borderRadius: 16,
+    shadowColor: '#9333ea', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
   progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 10,
   },
-  progressTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f2937',
+  progressTitle: { fontSize: 16, fontWeight: '700' },
+  progressText: { fontSize: 13 },
+  progressBarBg: {
+    height: 10, borderRadius: 5, overflow: 'hidden',
   },
-  progressText: {
-    fontSize: 12,
-    color: '#6b7280',
+  progressBarFill: { height: 10, borderRadius: 5 },
+
+  /* ── Section Card ── */
+  sectionCard: {
+    marginHorizontal: 20, marginTop: 14, padding: 16,
+    borderRadius: 18, borderWidth: 1,
   },
-  progressBar: {
-    height: 10,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 5,
-    overflow: 'hidden',
+  sectionHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 14,
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#9333ea',
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  sectionIcon: {
+    width: 30, height: 30, borderRadius: 15,
+    justifyContent: 'center', alignItems: 'center',
   },
-  card: {
-    backgroundColor: '#fff',
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+  sectionTitle: { fontSize: 17, fontWeight: '700', marginLeft: 9 },
+
+  emptyContainer: { alignItems: 'center', paddingVertical: 24 },
+  emptyText: { textAlign: 'center', paddingTop: 8, fontSize: 14 },
+
+  /* ── Task Cards ── */
+  taskCard: {
+    padding: 14, borderRadius: 14, marginBottom: 10,
+    borderWidth: 1,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  cardTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardTitleText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 10,
-    color: '#1f2937',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#6b7280',
-    paddingVertical: 30,
-  },
-  taskItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#f9fafb',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  taskContent: {
-    flex: 1,
-    marginLeft: 15,
+  taskTopRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
   },
   taskTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 5,
+    flex: 1, fontSize: 16, fontWeight: '600',
+    marginHorizontal: 12, marginTop: 2,
   },
   taskTitleCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#9ca3af',
-  },
-  taskDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 8,
+    textDecorationLine: 'line-through', color: '#9ca3af',
   },
   taskTags: {
-    flexDirection: 'row',
-    gap: 8,
+    flexDirection: 'row', gap: 8, marginTop: 10, marginLeft: 36,
   },
   priorityTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8,
   },
   tagText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'capitalize',
+    color: '#fff', fontSize: 12, fontWeight: 'bold',
   },
   categoryTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
+    paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8,
+    borderWidth: 1.5,
   },
   categoryText: {
-    color: '#6b7280',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
+    fontSize: 12, fontWeight: '600',
   },
+
+  /* ── Notes ── */
   noteInput: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    padding: 15,
-    fontSize: 14,
-    minHeight: 100,
-    textAlignVertical: 'top',
-    marginBottom: 10,
+    borderRadius: 12, padding: 14, fontSize: 14,
+    minHeight: 90, textAlignVertical: 'top',
+    marginBottom: 12,
   },
-  addNoteButton: {
-    backgroundColor: '#9333ea',
-    padding: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 15,
+  saveNoteButton: {
+    padding: 14, borderRadius: 14, alignItems: 'center',
+    marginBottom: 14,
+    shadowColor: '#9333ea', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25, shadowRadius: 6, elevation: 4,
   },
-  addNoteButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  saveNoteButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   noteCard: {
-    backgroundColor: '#fef3c7',
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#fde047',
-    marginBottom: 10,
+    flexDirection: 'row',
+    padding: 14, borderRadius: 10,
+    borderWidth: 1, marginBottom: 8,
   },
-  noteText: {
-    fontSize: 14,
-    color: '#1f2937',
-  },
+  noteText: { flex: 1, fontSize: 14, lineHeight: 20 },
 });

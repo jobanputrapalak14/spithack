@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import React from 'react';
 import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -28,8 +29,8 @@ export default function App() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
           <Stack.Screen name="Main" component={MainTabs} />
-          <Stack.Screen 
-            name="SmartCapture" 
+          <Stack.Screen
+            name="SmartCapture"
             component={SmartCaptureScreen}
             options={{
               headerShown: true,
@@ -38,8 +39,8 @@ export default function App() {
               headerTintColor: '#fff',
             }}
           />
-          <Stack.Screen 
-            name="Workspace" 
+          <Stack.Screen
+            name="Workspace"
             component={WorkspaceScreen}
             options={{
               headerShown: true,
@@ -48,8 +49,8 @@ export default function App() {
               headerTintColor: '#fff',
             }}
           />
-          <Stack.Screen 
-            name="EditProfile" 
+          <Stack.Screen
+            name="EditProfile"
             component={EditProfileScreen}
             options={{
               headerShown: true,
