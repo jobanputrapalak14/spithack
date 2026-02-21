@@ -9,7 +9,7 @@ from engines.burnout_engine import analyze_workload
 router = APIRouter(prefix="/api/planner", tags=["Intelligent Planner"])
 
 @router.get("/daily", response_model=schemas.DailyPlannerResponse)
-def get_daily_planner(db: Session = Depends(get_db)):
+async def get_daily_planner(db: Session = Depends(get_db)):
     today = datetime.utcnow()
     next_week = today + timedelta(days=7)
     
@@ -29,8 +29,8 @@ def get_daily_planner(db: Session = Depends(get_db)):
     # 3. Sort by cognitive priority
     task_responses.sort(key=lambda x: x.priority_score, reverse=True)
     
-    # 4. Apply Burnout Engine
-    score, is_burnout, suggestions = analyze_workload(task_responses)
+    # 4. Apply Burnout Engine (Now Async and uses DB for Voice Context)
+    score, is_burnout, suggestions = await analyze_workload(task_responses, db)
     
     return schemas.DailyPlannerResponse(
         date=today,
