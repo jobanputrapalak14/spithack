@@ -11,6 +11,12 @@ export function AppProvider({ children }) {
   const [theme, setTheme] = useState('light');
   const [isLoading, setIsLoading] = useState(true);
 
+  // ─── Google Integration State ───
+  const [googleTokens, setGoogleTokens] = useState(null);
+  const [googleCalendarEvents, setGoogleCalendarEvents] = useState([]);
+  const [googleEmails, setGoogleEmails] = useState([]);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   // Load data on mount
   useEffect(() => {
     loadData();
@@ -19,15 +25,20 @@ export function AppProvider({ children }) {
   const loadData = async () => {
     try {
       // 1. Load local data (User, Notes, Theme)
-      const [userData, notesData, themeData] = await Promise.all([
+      const [userData, notesData, themeData, googleTokenData] = await Promise.all([
         AsyncStorage.getItem('focusflow-user'),
         AsyncStorage.getItem('focusflow-notes'),
         AsyncStorage.getItem('focusflow-theme'),
+        AsyncStorage.getItem('focusflow-google-tokens'),
       ]);
 
       if (userData) setUser(JSON.parse(userData));
       if (notesData) setNotes(JSON.parse(notesData));
       if (themeData) setTheme(themeData);
+      if (googleTokenData) {
+        const tokens = JSON.parse(googleTokenData);
+        setGoogleTokens(tokens);
+      }
 
       // 2. Fetch Tasks from FastAPI Backend
       try {
@@ -85,6 +96,64 @@ export function AppProvider({ children }) {
       AsyncStorage.setItem('focusflow-theme', theme);
     }
   }, [theme, isLoading]);
+
+  // ─── Google: Auto-fetch when tokens are available ───
+  useEffect(() => {
+    if (googleTokens && !isLoading) {
+      fetchGoogleCalendar();
+      fetchGoogleEmails();
+    }
+  }, [googleTokens, isLoading]);
+
+  // ─── Google: Connect ───
+  const connectGoogle = async (tokens) => {
+    setGoogleTokens(tokens);
+    await AsyncStorage.setItem('focusflow-google-tokens', JSON.stringify(tokens));
+  };
+
+  // ─── Google: Disconnect ───
+  const disconnectGoogle = async () => {
+    setGoogleTokens(null);
+    setGoogleCalendarEvents([]);
+    setGoogleEmails([]);
+    await AsyncStorage.removeItem('focusflow-google-tokens');
+  };
+
+  // ─── Google: Fetch Calendar Events ───
+  const fetchGoogleCalendar = async () => {
+    if (!googleTokens?.accessToken) return;
+    setGoogleLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/google/calendar/events`, {
+        headers: { Authorization: `Bearer ${googleTokens.accessToken}` },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      setGoogleCalendarEvents(data);
+    } catch (error) {
+      console.error('Failed to fetch Google Calendar events:', error);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  // ─── Google: Fetch Gmail Messages ───
+  const fetchGoogleEmails = async () => {
+    if (!googleTokens?.accessToken) return;
+    setGoogleLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/google/gmail/messages`, {
+        headers: { Authorization: `Bearer ${googleTokens.accessToken}` },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      setGoogleEmails(data);
+    } catch (error) {
+      console.error('Failed to fetch Gmail messages:', error);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   // API Call: Add Task
   const addTask = async (task) => {
@@ -209,6 +278,15 @@ export function AppProvider({ children }) {
         signup,
         logout,
         isLoading,
+        // Google Integration
+        googleTokens,
+        googleCalendarEvents,
+        googleEmails,
+        googleLoading,
+        connectGoogle,
+        disconnectGoogle,
+        fetchGoogleCalendar,
+        fetchGoogleEmails,
       }}
     >
       {children}

@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 
 export default function CalendarScreen({ navigation }) {
-  const { tasks, theme } = useApp();
+  const { tasks, theme, googleCalendarEvents, googleTokens, googleLoading } = useApp();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const isDark = theme === 'dark';
@@ -192,6 +192,69 @@ export default function CalendarScreen({ navigation }) {
               </View>
             </View>
 
+            {/* ─── Google Calendar Events ─── */}
+            <View style={[styles.googleSection, { backgroundColor: colors.calendarCard }]}>
+              <View style={styles.googleHeader}>
+                <View style={styles.googleTitleRow}>
+                  <View style={[styles.googleIconWrap, { backgroundColor: isDark ? '#1a2744' : '#e8f0fe' }]}>
+                    <Text style={styles.googleIconText}>G</Text>
+                  </View>
+                  <Text style={[styles.googleTitle, { color: colors.monthText }]}>Google Calendar</Text>
+                </View>
+                {googleTokens && googleCalendarEvents.length > 0 && (
+                  <View style={styles.googleBadge}>
+                    <Text style={styles.googleBadgeText}>{googleCalendarEvents.length} events</Text>
+                  </View>
+                )}
+              </View>
+
+              {!googleTokens ? (
+                <View style={styles.googleEmpty}>
+                  <Icon name="link" size={24} color={isDark ? '#6b5b8a' : '#c4b5d4'} />
+                  <Text style={[styles.googleEmptyText, { color: colors.legendText }]}>
+                    Connect Google in Settings to see your calendar events here
+                  </Text>
+                </View>
+              ) : googleLoading ? (
+                <View style={styles.googleEmpty}>
+                  <Icon name="loader" size={20} color="#4285F4" />
+                  <Text style={[styles.googleEmptyText, { color: colors.legendText }]}>Loading events...</Text>
+                </View>
+              ) : googleCalendarEvents.length === 0 ? (
+                <View style={styles.googleEmpty}>
+                  <Icon name="check-circle" size={24} color="#22c55e" />
+                  <Text style={[styles.googleEmptyText, { color: colors.legendText }]}>No upcoming events 🎉</Text>
+                </View>
+              ) : (
+                <View>
+                  {googleCalendarEvents.slice(0, 5).map((event) => {
+                    const startDate = new Date(event.start);
+                    const timeStr = event.is_all_day
+                      ? 'All day'
+                      : startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const dateStr = startDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                    return (
+                      <View key={event.id} style={[styles.googleEventItem, { borderBottomColor: isDark ? '#2d2250' : '#f3f0f8' }]}>
+                        <View style={[styles.googleEventDot, { backgroundColor: '#4285F4' }]} />
+                        <View style={styles.googleEventContent}>
+                          <Text style={[styles.googleEventTitle, { color: colors.monthText }]} numberOfLines={1}>{event.title}</Text>
+                          <Text style={[styles.googleEventTime, { color: colors.legendText }]}>
+                            {dateStr} • {timeStr}
+                            {event.location ? ` • ${event.location}` : ''}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                  {googleCalendarEvents.length > 5 && (
+                    <Text style={[styles.googleMoreText, { color: '#4285F4' }]}>
+                      +{googleCalendarEvents.length - 5} more events
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+
             <View style={{ height: 30 }} />
           </Animated.View>
         </ScrollView>
@@ -264,4 +327,40 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   taskDotText: { color: '#fff', fontSize: 9, fontWeight: 'bold' },
+
+  /* ── Google Calendar Section ── */
+  googleSection: {
+    marginHorizontal: 20, marginTop: 14, padding: 20,
+    borderRadius: 20,
+    shadowColor: '#4285F4', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
+  },
+  googleHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 14,
+  },
+  googleTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  googleIconWrap: {
+    width: 30, height: 30, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center', marginRight: 9,
+  },
+  googleIconText: { fontSize: 16, fontWeight: '800', color: '#4285F4' },
+  googleTitle: { fontSize: 17, fontWeight: '700' },
+  googleBadge: {
+    backgroundColor: '#4285F4', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10,
+  },
+  googleBadgeText: { color: '#fff', fontWeight: 'bold', fontSize: 11 },
+  googleEmpty: { alignItems: 'center', paddingVertical: 20 },
+  googleEmptyText: { textAlign: 'center', paddingTop: 8, fontSize: 13, paddingHorizontal: 20 },
+  googleEventItem: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 10, borderBottomWidth: 1,
+  },
+  googleEventDot: {
+    width: 8, height: 8, borderRadius: 4, marginRight: 12,
+  },
+  googleEventContent: { flex: 1 },
+  googleEventTitle: { fontSize: 14, fontWeight: '600' },
+  googleEventTime: { fontSize: 12, marginTop: 2 },
+  googleMoreText: { fontSize: 12, fontWeight: '600', textAlign: 'center', paddingTop: 10 },
 });

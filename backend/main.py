@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
-from routers import tasks, planner, capture, voice
+from routers import tasks, planner, capture, voice, google_services
 import os
 from twilio.rest import Client
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -31,6 +31,7 @@ app.include_router(capture.router)
 app.include_router(tasks.router)
 app.include_router(planner.router)
 app.include_router(voice.router)
+app.include_router(google_services.router)
 
 # --- TWILIO & SCHEDULER LOGIC ---
 scheduler = BackgroundScheduler()

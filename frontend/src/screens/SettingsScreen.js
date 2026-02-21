@@ -1,16 +1,29 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Animated, ActivityIndicator } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE'; // Replace with your Google Client ID
+
+const discovery = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenEndpoint: 'https://oauth2.googleapis.com/token',
+  revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+};
 
 export default function SettingsScreen({ navigation }) {
-  const { user, theme, setTheme, logout } = useApp();
+  const { user, theme, setTheme, logout, googleTokens, connectGoogle, disconnectGoogle, googleLoading } = useApp();
   const [taskReminders, setTaskReminders] = React.useState(true);
   const [dailySummary, setDailySummary] = React.useState(true);
   const [burnoutWarnings, setBurnoutWarnings] = React.useState(true);
   const [habitStreaks, setHabitStreaks] = React.useState(false);
   const [reminderCall, setReminderCall] = React.useState(false);
+  const [connecting, setConnecting] = React.useState(false);
 
   const isDark = theme === 'dark';
   const colors = isDark
@@ -26,6 +39,48 @@ export default function SettingsScreen({ navigation }) {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: () => { logout(); navigation.replace('Login'); } },
+    ]);
+  };
+
+  // ─── Google OAuth Flow ───
+  const handleGoogleConnect = async () => {
+    setConnecting(true);
+    try {
+      const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
+      const authRequest = new AuthSession.AuthRequest({
+        clientId: GOOGLE_CLIENT_ID,
+        scopes: [
+          'https://www.googleapis.com/auth/calendar.readonly',
+          'https://www.googleapis.com/auth/gmail.readonly',
+          'https://www.googleapis.com/auth/userinfo.email',
+        ],
+        redirectUri,
+        responseType: AuthSession.ResponseType.Token,
+      });
+
+      const result = await authRequest.promptAsync(discovery);
+
+      if (result.type === 'success') {
+        const { access_token } = result.params;
+        await connectGoogle({ accessToken: access_token });
+        Alert.alert('✅ Connected!', 'Google Calendar & Gmail linked successfully.');
+      } else if (result.type === 'cancel') {
+        // User cancelled, do nothing
+      } else {
+        Alert.alert('Connection Failed', 'Could not connect to Google. Please try again.');
+      }
+    } catch (error) {
+      console.error('Google Auth Error:', error);
+      Alert.alert('Error', 'Something went wrong connecting to Google.');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleGoogleDisconnect = () => {
+    Alert.alert('Disconnect Google', 'This will remove access to your Calendar & Gmail data.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Disconnect', style: 'destructive', onPress: () => disconnectGoogle() },
     ]);
   };
 
@@ -88,6 +143,74 @@ export default function SettingsScreen({ navigation }) {
                 </View>
                 <Icon name="chevron-right" size={20} color={colors.textSub} />
               </TouchableOpacity>
+            </View>
+
+            {/* ─── Connected Accounts (Google) ─── */}
+            <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <View style={styles.sectionHeader}>
+                <LinearGradient colors={isDark ? ['#1a2744', '#1e3a5f'] : ['#e8f0fe', '#d2e3fc']} style={styles.smallIcon}>
+                  <Icon name="link" size={15} color="#4285F4" />
+                </LinearGradient>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Connected Accounts</Text>
+              </View>
+
+              {/* Google Account Row */}
+              <View style={[styles.googleRow, { borderBottomColor: colors.settingBorder }]}>
+                <View style={styles.googleInfo}>
+                  <View style={styles.googleIconRow}>
+                    <View style={[styles.googleLogoWrap, { backgroundColor: isDark ? '#1a2744' : '#e8f0fe' }]}>
+                      <Text style={styles.googleLogoText}>G</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.settingLabel, { color: colors.text }]}>Google</Text>
+                      <Text style={[styles.settingDescription, { color: colors.textSub }]}>
+                        Calendar & Gmail
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {googleTokens ? (
+                  <View style={styles.googleActions}>
+                    <View style={styles.connectedBadge}>
+                      <Icon name="check-circle" size={12} color="#22c55e" />
+                      <Text style={styles.connectedText}>Connected</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.disconnectBtn, isDark && { borderColor: '#3d2e5c' }]}
+                      activeOpacity={0.7}
+                      onPress={handleGoogleDisconnect}
+                    >
+                      <Text style={[styles.disconnectText, { color: isDark ? '#fca5a5' : '#ef4444' }]}>Disconnect</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.connectBtn}
+                    activeOpacity={0.8}
+                    onPress={handleGoogleConnect}
+                    disabled={connecting}
+                  >
+                    {connecting ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Icon name="log-in" size={14} color="#fff" />
+                        <Text style={styles.connectBtnText}>Connect</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {googleTokens && (
+                <View style={styles.googleSyncInfo}>
+                  <Icon name="refresh-cw" size={12} color={colors.textSub} />
+                  <Text style={[styles.syncText, { color: colors.textSub }]}>
+                    {googleLoading ? 'Syncing...' : 'Synced • Calendar & Gmail data available'}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* ─── Permission ─── */}
@@ -262,6 +385,49 @@ const styles = StyleSheet.create({
   profileInfo: { flex: 1, marginLeft: 14 },
   profileName: { fontSize: 17, fontWeight: '700' },
   profileEmail: { fontSize: 13, marginTop: 1 },
+
+  /* ── Google Connected Accounts ── */
+  googleRow: {
+    paddingBottom: 12,
+  },
+  googleInfo: { flex: 1 },
+  googleIconRow: { flexDirection: 'row', alignItems: 'center' },
+  googleLogoWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+  },
+  googleLogoText: {
+    fontSize: 18, fontWeight: '800', color: '#4285F4',
+  },
+  googleActions: {
+    flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 10,
+  },
+  connectedBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(34,197,94,0.12)', paddingHorizontal: 10,
+    paddingVertical: 5, borderRadius: 8,
+  },
+  connectedText: {
+    fontSize: 12, fontWeight: '600', color: '#22c55e', marginLeft: 4,
+  },
+  disconnectBtn: {
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8,
+    borderWidth: 1, borderColor: '#fecaca',
+  },
+  disconnectText: { fontSize: 12, fontWeight: '600' },
+  connectBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#4285F4', paddingHorizontal: 16,
+    paddingVertical: 8, borderRadius: 10, marginTop: 10,
+    alignSelf: 'flex-start',
+    shadowColor: '#4285F4', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3, shadowRadius: 4, elevation: 3,
+  },
+  connectBtnText: { color: '#fff', fontWeight: '700', fontSize: 13, marginLeft: 6 },
+  googleSyncInfo: {
+    flexDirection: 'row', alignItems: 'center', marginTop: 8,
+  },
+  syncText: { fontSize: 11, marginLeft: 6 },
 
   /* ── Settings Toggle ── */
   settingItem: {

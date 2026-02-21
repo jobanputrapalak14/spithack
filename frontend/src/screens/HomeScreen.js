@@ -19,7 +19,7 @@ const TASK_ITEM_HEIGHT = 68;
 const MAX_VISIBLE_ITEMS = 4;
 
 export default function HomeScreen({ navigation }) {
-  const { tasks, user, updateTask, theme } = useApp();
+  const { tasks, user, updateTask, theme, googleEmails, googleTokens, googleLoading } = useApp();
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
 
@@ -368,6 +368,74 @@ export default function HomeScreen({ navigation }) {
             )}
           </Animated.View>
 
+          {/* ─── Recent Emails (Google) ─── */}
+          <Animated.View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }, animatedStyle(2)]}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <LinearGradient colors={isDark ? ['#1a2744', '#1e3a5f'] : ['#e8f0fe', '#d2e3fc']} style={styles.sectionIcon}>
+                  <Icon name="mail" size={16} color="#4285F4" />
+                </LinearGradient>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Emails</Text>
+              </View>
+              {googleTokens && googleEmails.length > 0 && (
+                <View style={[styles.badge, { backgroundColor: '#4285F4' }]}>
+                  <Text style={styles.badgeText}>{googleEmails.filter(e => e.is_unread).length} new</Text>
+                </View>
+              )}
+            </View>
+
+            {!googleTokens ? (
+              <View style={styles.emptyContainer}>
+                <Icon name="link" size={28} color={colors.emptyIcon} />
+                <Text style={[styles.emptyText, { color: colors.textSub }]}>
+                  Connect Google in Settings to see your emails here
+                </Text>
+              </View>
+            ) : googleLoading ? (
+              <View style={styles.emptyContainer}>
+                <Icon name="loader" size={24} color="#4285F4" />
+                <Text style={[styles.emptyText, { color: colors.textSub }]}>Loading emails...</Text>
+              </View>
+            ) : googleEmails.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Icon name="inbox" size={28} color={colors.emptyIcon} />
+                <Text style={[styles.emptyText, { color: colors.textSub }]}>No recent emails</Text>
+              </View>
+            ) : (
+              <View>
+                {googleEmails.slice(0, 5).map((email) => {
+                  const senderName = email.sender.includes('<')
+                    ? email.sender.split('<')[0].trim()
+                    : email.sender;
+                  return (
+                    <View
+                      key={email.id}
+                      style={[styles.emailItem, {
+                        backgroundColor: email.is_unread
+                          ? (isDark ? 'rgba(66,133,244,0.1)' : 'rgba(66,133,244,0.06)')
+                          : colors.taskItemBg,
+                        borderColor: isDark ? 'rgba(66,133,244,0.15)' : 'rgba(66,133,244,0.08)',
+                      }]}
+                    >
+                      <View style={[styles.emailDot, { backgroundColor: email.is_unread ? '#4285F4' : 'transparent' }]} />
+                      <View style={styles.emailContent}>
+                        <Text style={[styles.emailSender, { color: colors.text }]} numberOfLines={1}>
+                          {senderName}
+                        </Text>
+                        <Text style={[styles.emailSubject, { color: colors.text }]} numberOfLines={1}>
+                          {email.subject}
+                        </Text>
+                        <Text style={[styles.emailSnippet, { color: colors.textSub }]} numberOfLines={1}>
+                          {email.snippet}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </Animated.View>
+
           {/* ─── Task Status ─── */}
           <Animated.View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }, animatedStyle(3)]}>
             <Text style={[styles.statusCardTitle, { color: colors.text }]}>Task Status</Text>
@@ -628,4 +696,19 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginTop: 10,
   },
   closeButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+
+  /* ── Email Items ── */
+  emailItem: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    padding: 12, borderRadius: 12, marginBottom: 6,
+    borderWidth: 1,
+  },
+  emailDot: {
+    width: 8, height: 8, borderRadius: 4,
+    marginTop: 6, marginRight: 10,
+  },
+  emailContent: { flex: 1 },
+  emailSender: { fontSize: 12, fontWeight: '500', marginBottom: 2 },
+  emailSubject: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  emailSnippet: { fontSize: 12 },
 });
