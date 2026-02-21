@@ -17,3 +17,11 @@ class Task(Base):
     
     # Store calculated metrics (optional, can also be strictly calculated at runtime)
     estimated_minutes = Column(Integer, default=30)
+
+class UserReflection(Base):
+    __tablename__ = "user_reflections"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    date = Column(DateTime, default=datetime.utcnow)
+    transcribed_query = Column(String, nullable=False)
+    used_in_suggestions = Column(Boolean, default=False)

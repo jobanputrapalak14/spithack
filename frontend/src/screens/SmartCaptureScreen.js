@@ -16,7 +16,7 @@ import { useApp } from '../context/AppContext';
 import axios from 'axios';
 
 // ⚠️ Ensure this matches the URL in your AppContext.js
-const API_URL = 'http://10.10.53.74:8000/api';
+const API_URL = 'http://10.10.53.72:8000/api';
 
 export default function SmartCaptureScreen({ navigation }) {
   const { addTask } = useApp();
@@ -25,7 +25,7 @@ export default function SmartCaptureScreen({ navigation }) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
-  
+
   // Updated state to use "title" matching the backend Task schema
   const [aiPreview, setAiPreview] = useState({
     title: '',
@@ -50,7 +50,7 @@ export default function SmartCaptureScreen({ navigation }) {
       });
 
       const parsedData = response.data;
-      
+
       // Format the date for the input field preview (YYYY-MM-DD)
       const dateObj = new Date(parsedData.deadline);
       const formattedDate = dateObj.toISOString().split('T')[0];

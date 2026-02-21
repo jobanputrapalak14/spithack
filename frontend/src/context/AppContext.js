@@ -6,7 +6,7 @@ import axios from 'axios';
 // - Android Emulator: 'http://10.0.2.2:8000/api'
 // - iOS Simulator: 'http://localhost:8000/api'
 // - Physical Device: 'http://<YOUR_COMPUTER_WIFI_IP>:8000/api'
-const API_URL = 'http://10.10.53.74:8000/api';
+const API_URL = 'http://10.10.53.72:8000/api';
 
 const AppContext = createContext(undefined);
 
@@ -98,15 +98,15 @@ export function AppProvider({ children }) {
         ...task,
         deadline: task.deadline instanceof Date ? task.deadline.toISOString() : task.deadline
       };
-      
+
       const response = await axios.post(`${API_URL}/tasks/`, payload);
-      
+
       const newTask = {
         ...response.data,
         deadline: new Date(response.data.deadline),
         createdAt: new Date(response.data.created_at || new Date()),
       };
-      
+
       setTasks((prev) => [...prev, newTask]);
     } catch (error) {
       console.error('Failed to add task via API:', error);
@@ -125,12 +125,12 @@ export function AppProvider({ children }) {
       if (payload.deadline && payload.deadline instanceof Date) {
         payload.deadline = payload.deadline.toISOString();
       }
-      
+
       await axios.patch(`${API_URL}/tasks/${id}`, payload);
     } catch (error) {
       console.error('Failed to update task via API:', error);
       // If API fails, reload from server to fix state mismatch
-      loadData(); 
+      loadData();
     }
   };
 
