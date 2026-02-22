@@ -130,7 +130,8 @@ async def get_calendar_events(authorization: str = Header(None)):
         return calendar_events
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch calendar events: {str(e)}")
+        print("GOOGLE ERROR:", e)   # 👈 ADD THIS
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ─── GET /api/google/gmail/messages ──────────────────────
 
@@ -180,4 +181,5 @@ async def get_gmail_messages(authorization: str = Header(None), max_results: int
         return gmail_messages
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch Gmail messages: {str(e)}")
+        print("GOOGLE ERROR:", e)   # 👈 ADD THIS
+        raise HTTPException(status_code=500, detail=str(e))

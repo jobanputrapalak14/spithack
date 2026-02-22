@@ -100,7 +100,7 @@ export function AppProvider({ children }) {
   // ─── Google: Auto-fetch when tokens are available ───
   useEffect(() => {
     if (googleTokens && !isLoading) {
-      fetchGoogleCalendar();
+      fetchGoogleCalendarEvents();
       fetchGoogleEmails();
     }
   }, [googleTokens, isLoading]);
@@ -120,7 +120,7 @@ export function AppProvider({ children }) {
   };
 
   // ─── Google: Fetch Calendar Events ───
-  const fetchGoogleCalendar = async () => {
+  const fetchGoogleCalendarEvents = async () => {
     if (!googleTokens?.accessToken) return;
     setGoogleLoading(true);
     try {
@@ -256,8 +256,19 @@ export function AppProvider({ children }) {
     return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
+    setTasks([]);
+    setNotes([]);
+    setGoogleTokens(null);
+    setGoogleCalendarEvents([]);
+    setGoogleEmails([]);
+    await AsyncStorage.multiRemove([
+      'focusflow-user',
+      'focusflow-notes',
+      'focusflow-tasks-fallback',
+      'focusflow-google-tokens',
+    ]);
   };
 
   return (
@@ -285,7 +296,7 @@ export function AppProvider({ children }) {
         googleLoading,
         connectGoogle,
         disconnectGoogle,
-        fetchGoogleCalendar,
+        fetchGoogleCalendarEvents, // ⭐ Exported properly now
         fetchGoogleEmails,
       }}
     >

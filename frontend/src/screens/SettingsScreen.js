@@ -1,8 +1,9 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Animated, ActivityIndicator, Modal } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
+import { CommonActions } from '@react-navigation/native';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -25,6 +26,11 @@ export default function SettingsScreen({ navigation }) {
   const [habitStreaks, setHabitStreaks] = React.useState(false);
   const [reminderCall, setReminderCall] = React.useState(false);
   const [connecting, setConnecting] = React.useState(false);
+  const [showTimePicker, setShowTimePicker] = React.useState(false);
+  const [selectedHour, setSelectedHour] = React.useState(9);
+  const [selectedMinute, setSelectedMinute] = React.useState(0);
+  const [selectedPeriod, setSelectedPeriod] = React.useState('AM');
+  const [reminderTimeLabel, setReminderTimeLabel] = React.useState('');
 
   const isDark = theme === 'dark';
   const colors = isDark
@@ -39,8 +45,46 @@ export default function SettingsScreen({ navigation }) {
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => { logout(); navigation.replace('Login'); } },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          // Get the root navigator (parent of the tab navigator)
+          const rootNav = navigation.getParent() || navigation;
+          rootNav.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            })
+          );
+        },
+      },
     ]);
+  };
+
+  // Handle reminder call toggle
+  const handleReminderCallToggle = (value) => {
+    if (value) {
+      // Show time picker when turning on
+      setShowTimePicker(true);
+    } else {
+      setReminderCall(false);
+      setReminderTimeLabel('');
+    }
+  };
+
+  // Confirm reminder time selection
+  const handleConfirmTime = () => {
+    setReminderCall(true);
+    const timeStr = `${selectedHour}:${String(selectedMinute).padStart(2, '0')} ${selectedPeriod}`;
+    setReminderTimeLabel(timeStr);
+    setShowTimePicker(false);
+    Alert.alert(
+      '⏰ Reminder Call Set!',
+      `You will receive a reminder call every day at ${timeStr}. We'll call you at this time to keep you on track!`,
+      [{ text: 'Got it!' }]
+    );
   };
 
   // ─── Google OAuth Flow ───
@@ -269,12 +313,22 @@ export default function SettingsScreen({ navigation }) {
                 value={habitStreaks}
                 onValueChange={setHabitStreaks}
               />
-              <SettingToggle
-                label="Reminder Call"
-                description="Allow phone call reminders for deadlines"
-                value={reminderCall}
-                onValueChange={setReminderCall}
-              />
+              <View style={[styles.settingItem, { borderBottomColor: colors.settingBorder }]}>
+                <View style={styles.settingInfo}>
+                  <Text style={[styles.settingLabel, { color: colors.text }]}>Reminder Call</Text>
+                  <Text style={[styles.settingDescription, { color: colors.textSub }]}>
+                    {reminderCall && reminderTimeLabel
+                      ? `Daily call at ${reminderTimeLabel}`
+                      : 'Allow phone call reminders for deadlines'}
+                  </Text>
+                </View>
+                <Switch
+                  value={reminderCall}
+                  onValueChange={handleReminderCallToggle}
+                  trackColor={{ false: isDark ? '#3d2e5c' : '#d1d5db', true: '#c4b5fd' }}
+                  thumbColor={reminderCall ? '#9333ea' : isDark ? '#6b5b8a' : '#f3f4f6'}
+                />
+              </View>
             </View>
 
             {/* ─── Theme ─── */}
@@ -358,6 +412,125 @@ export default function SettingsScreen({ navigation }) {
             <View style={{ height: 30 }} />
           </Animated.View>
         </ScrollView>
+
+        {/* ─── Reminder Call Time Picker Modal ─── */}
+        <Modal
+          visible={showTimePicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowTimePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.timePickerModal, { backgroundColor: isDark ? '#1a1333' : '#fff' }]}>
+              <Text style={[styles.timePickerTitle, { color: isDark ? '#f3e8ff' : '#1f2937' }]}>
+                ⏰ Set Reminder Time
+              </Text>
+              <Text style={[styles.timePickerSubtitle, { color: isDark ? '#a78bca' : '#6b7280' }]}>
+                Choose the time you'd like to receive your daily reminder call
+              </Text>
+
+              <View style={styles.timePickerRow}>
+                {/* Hour */}
+                <View style={styles.timePickerColumn}>
+                  <Text style={[styles.timePickerLabel, { color: isDark ? '#a78bca' : '#6b7280' }]}>Hour</Text>
+                  <View style={styles.timePickerScrollContainer}>
+                    <TouchableOpacity
+                      onPress={() => setSelectedHour(h => h <= 1 ? 12 : h - 1)}
+                      style={[styles.timeArrow, { borderColor: isDark ? '#3d2e5c' : '#e5e7eb' }]}
+                    >
+                      <Text style={[styles.timeArrowText, { color: isDark ? '#c4b5fd' : '#9333ea' }]}>▲</Text>
+                    </TouchableOpacity>
+                    <View style={[styles.timeValueBox, { backgroundColor: isDark ? '#251d3d' : '#f3e8ff' }]}>
+                      <Text style={[styles.timeValue, { color: isDark ? '#f3e8ff' : '#1f2937' }]}>{selectedHour}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setSelectedHour(h => h >= 12 ? 1 : h + 1)}
+                      style={[styles.timeArrow, { borderColor: isDark ? '#3d2e5c' : '#e5e7eb' }]}
+                    >
+                      <Text style={[styles.timeArrowText, { color: isDark ? '#c4b5fd' : '#9333ea' }]}>▼</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text style={[styles.timeColon, { color: isDark ? '#f3e8ff' : '#1f2937' }]}>:</Text>
+
+                {/* Minute */}
+                <View style={styles.timePickerColumn}>
+                  <Text style={[styles.timePickerLabel, { color: isDark ? '#a78bca' : '#6b7280' }]}>Min</Text>
+                  <View style={styles.timePickerScrollContainer}>
+                    <TouchableOpacity
+                      onPress={() => setSelectedMinute(m => m <= 0 ? 55 : m - 5)}
+                      style={[styles.timeArrow, { borderColor: isDark ? '#3d2e5c' : '#e5e7eb' }]}
+                    >
+                      <Text style={[styles.timeArrowText, { color: isDark ? '#c4b5fd' : '#9333ea' }]}>▲</Text>
+                    </TouchableOpacity>
+                    <View style={[styles.timeValueBox, { backgroundColor: isDark ? '#251d3d' : '#f3e8ff' }]}>
+                      <Text style={[styles.timeValue, { color: isDark ? '#f3e8ff' : '#1f2937' }]}>{String(selectedMinute).padStart(2, '0')}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setSelectedMinute(m => m >= 55 ? 0 : m + 5)}
+                      style={[styles.timeArrow, { borderColor: isDark ? '#3d2e5c' : '#e5e7eb' }]}
+                    >
+                      <Text style={[styles.timeArrowText, { color: isDark ? '#c4b5fd' : '#9333ea' }]}>▼</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* AM/PM */}
+                <View style={styles.timePickerColumn}>
+                  <Text style={[styles.timePickerLabel, { color: isDark ? '#a78bca' : '#6b7280' }]}> </Text>
+                  <View style={styles.timePickerScrollContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.periodBtn,
+                        selectedPeriod === 'AM' && styles.periodBtnActive,
+                        { borderColor: isDark ? '#3d2e5c' : '#e5e7eb' },
+                      ]}
+                      onPress={() => setSelectedPeriod('AM')}
+                    >
+                      <Text style={[
+                        styles.periodBtnText,
+                        selectedPeriod === 'AM' && styles.periodBtnTextActive,
+                        { color: isDark ? '#a78bca' : '#6b7280' },
+                      ]}>AM</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.periodBtn,
+                        selectedPeriod === 'PM' && styles.periodBtnActive,
+                        { borderColor: isDark ? '#3d2e5c' : '#e5e7eb' },
+                      ]}
+                      onPress={() => setSelectedPeriod('PM')}
+                    >
+                      <Text style={[
+                        styles.periodBtnText,
+                        selectedPeriod === 'PM' && styles.periodBtnTextActive,
+                        { color: isDark ? '#a78bca' : '#6b7280' },
+                      ]}>PM</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.timePickerActions}>
+                <TouchableOpacity
+                  style={[styles.timeCancelBtn, { borderColor: isDark ? '#3d2e5c' : '#e5e7eb' }]}
+                  onPress={() => setShowTimePicker(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.timeCancelText, { color: isDark ? '#a78bca' : '#6b7280' }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.timeConfirmBtn}
+                  onPress={handleConfirmTime}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.timeConfirmText}>Set Reminder</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </LinearGradient>
     </View>
   );
@@ -499,4 +672,87 @@ const styles = StyleSheet.create({
   },
   logoutTitle: { fontSize: 16, fontWeight: '700', color: '#ef4444' },
   logoutDesc: { fontSize: 12, marginTop: 1 },
+
+  /* ── Time Picker Modal ── */
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  timePickerModal: {
+    width: '85%', borderRadius: 22, padding: 24,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2, shadowRadius: 20, elevation: 10,
+  },
+  timePickerTitle: {
+    fontSize: 22, fontWeight: '800', textAlign: 'center', marginBottom: 4,
+  },
+  timePickerSubtitle: {
+    fontSize: 13, textAlign: 'center', marginBottom: 24,
+  },
+  timePickerRow: {
+    flexDirection: 'row', justifyContent: 'center',
+    alignItems: 'center', marginBottom: 28,
+  },
+  timePickerColumn: {
+    alignItems: 'center', marginHorizontal: 8,
+  },
+  timePickerLabel: {
+    fontSize: 11, fontWeight: '600', marginBottom: 8,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  timePickerScrollContainer: {
+    alignItems: 'center',
+  },
+  timeArrow: {
+    width: 40, height: 32, borderRadius: 10,
+    borderWidth: 1.5, justifyContent: 'center', alignItems: 'center',
+  },
+  timeArrowText: {
+    fontSize: 14, fontWeight: '700',
+  },
+  timeValueBox: {
+    width: 60, height: 52, borderRadius: 14,
+    justifyContent: 'center', alignItems: 'center',
+    marginVertical: 6,
+  },
+  timeValue: {
+    fontSize: 28, fontWeight: '800',
+  },
+  timeColon: {
+    fontSize: 28, fontWeight: '800', marginHorizontal: 2,
+    marginTop: 20,
+  },
+  periodBtn: {
+    width: 50, height: 36, borderRadius: 10,
+    borderWidth: 1.5, justifyContent: 'center', alignItems: 'center',
+    marginVertical: 3,
+  },
+  periodBtnActive: {
+    backgroundColor: '#9333ea', borderColor: '#9333ea',
+  },
+  periodBtnText: {
+    fontSize: 14, fontWeight: '700',
+  },
+  periodBtnTextActive: {
+    color: '#fff',
+  },
+  timePickerActions: {
+    flexDirection: 'row', gap: 12,
+  },
+  timeCancelBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 14,
+    borderWidth: 1.5, alignItems: 'center',
+  },
+  timeCancelText: {
+    fontSize: 15, fontWeight: '600',
+  },
+  timeConfirmBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: '#9333ea', alignItems: 'center',
+    shadowColor: '#9333ea', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
+  },
+  timeConfirmText: {
+    color: '#fff', fontSize: 15, fontWeight: '700',
+  },
 });
