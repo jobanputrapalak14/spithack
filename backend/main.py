@@ -7,7 +7,6 @@ from twilio.rest import Client
 from apscheduler.schedulers.background import BackgroundScheduler
 from engines.reminders import send_pending_task_reminder
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
@@ -41,6 +40,7 @@ app.include_router(voice.router)
 app.include_router(google_services.router)
 
 # --- TWILIO & SCHEDULER LOGIC ---
+# Initialize Scheduler ONCE (Combined to prevent overwriting)
 scheduler = BackgroundScheduler()
 
 def trigger_evening_call():
@@ -61,17 +61,34 @@ def trigger_evening_call():
 
 @app.on_event("startup")
 def start_scheduler():
-    # For Hackathon Demo: Set this to trigger every 5 minutes so judges can see it!
-    # In production: trigger='cron', hour=21, minute=0
+    # Job 1: Call the user every 5 minutes (Hackathon Demo Mode)
     scheduler.add_job(trigger_evening_call, 'interval', minutes=5) 
-    scheduler.start()
+    
+    # Job 2: Send pending task SMS every 6 hours
+    scheduler.add_job(send_pending_task_reminder, 'interval', hours=6)
+    
+    if not scheduler.running:
+        scheduler.start()
 
-# --- NEW SECRET TEST ENDPOINT ---
+@app.on_event("shutdown")
+def stop_scheduler():
+    scheduler.shutdown()
+
+# --- NEW SECRET TEST ENDPOINTS ---
 @app.get("/api/test-call")
 def test_call_now():
     """Secret endpoint to manually trigger the Twilio call for the hackathon demo!"""
     trigger_evening_call()
     return {"status": "success", "message": "Check your phone, it should be ringing!"}
+
+@app.post("/api/trigger-sms")
+async def trigger_sms_now():
+    """Secret endpoint to manually trigger the Twilio SMS for the hackathon demo!"""
+    try:
+        send_pending_task_reminder()
+        return {"status": "success", "message": "SMS Reminder triggered successfully!"}
+    except Exception as e:
+        return {"error": str(e)}
 
 # 5. Global Routes
 @app.get("/")
@@ -82,18 +99,3 @@ def health_check():
 async def smart_capture():
     print("HIT FASTAPI ENDPOINT")
     return {"status": "ok"}
-
-# Initialize Scheduler
-scheduler = BackgroundScheduler()
-
-# Schedule to run every 6 hours (or use CronTrigger for specific times)
-scheduler.add_job(send_pending_task_reminder, 'interval', hours=6)
-
-@app.on_event("startup")
-def start_scheduler():
-    if not scheduler.running:
-        scheduler.start()
-
-@app.on_event("shutdown")
-def stop_scheduler():
-    scheduler.shutdown()

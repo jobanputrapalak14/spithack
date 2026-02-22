@@ -135,7 +135,8 @@ export default function SmartCaptureScreen({ navigation }) {
 
   // AI Analysis via FastAPI backend — sends text + audio + files as FormData
   const handleAnalyze = async () => {
-    if (!inputText.trim() && !audioUri && attachedFiles.length === 0) return;
+    const hasInput = inputText.trim() || audioUri || attachedFiles.length > 0;
+    if (!hasInput) return;
     setIsAnalyzing(true);
     setChatMessages([
       { role: 'user', content: inputText || '[Audio/File input]' },
@@ -331,12 +332,12 @@ export default function SmartCaptureScreen({ navigation }) {
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={handleAnalyze}
-                disabled={!inputText.trim() || isAnalyzing}
+                disabled={(!inputText.trim() && !audioUri && attachedFiles.length === 0) || isAnalyzing}
               >
                 <LinearGradient
-                  colors={!inputText.trim() ? ['#d8b4fe', '#c4b5fd'] : ['#c084fc', '#9333ea', '#7c3aed']}
+                  colors={(!inputText.trim() && !audioUri && attachedFiles.length === 0) ? ['#d8b4fe', '#c4b5fd'] : ['#c084fc', '#9333ea', '#7c3aed']}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={[styles.analyzeButton, !inputText.trim() && { opacity: 0.5 }]}
+                  style={[styles.analyzeButton, (!inputText.trim() && !audioUri && attachedFiles.length === 0) && { opacity: 0.5 }]}
                 >
                   {isAnalyzing ? (
                     <>

@@ -23,8 +23,8 @@ def get_tasks(db: Session = Depends(get_db)):
     return db.query(models.Task).all()
 
 @router.patch("/{task_id}", response_model=schemas.TaskResponse)
-def update_task(task_id: int, updates: schemas.TaskUpdate, db: Session = Depends(get_db)):
-    """Updates an existing task. Changed task_id to int to match standard DB IDs."""
+def update_task(task_id: str, updates: schemas.TaskUpdate, db: Session = Depends(get_db)):
+    """Updates an existing task."""
     db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
     
     if not db_task:
