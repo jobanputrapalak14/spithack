@@ -6,6 +6,13 @@ import os
 from twilio.rest import Client
 from apscheduler.schedulers.background import BackgroundScheduler
 from engines.reminders import send_pending_task_reminder
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+print("CLIENT_ID:", os.getenv("GOOGLE_CLIENT_ID"))
+print("CLIENT_SECRET:", os.getenv("GOOGLE_CLIENT_SECRET"))
 
 # 1. Create database tables
 Base.metadata.create_all(bind=engine)

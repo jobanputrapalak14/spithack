@@ -8,9 +8,10 @@ import * as WebBrowser from 'expo-web-browser';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE'; // Replace with your Google Client ID
+// Your actual Google Client ID from Google Cloud Console
+const GOOGLE_CLIENT_ID = '1058825657468-v0g6smcjlgkqplrce4pblm21dj3pp939.apps.googleusercontent.com';
 
-const discovery = {
+const discovery = AuthSession.useAutoDiscovery ? undefined : {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenEndpoint: 'https://oauth2.googleapis.com/token',
   revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
@@ -46,32 +47,54 @@ export default function SettingsScreen({ navigation }) {
   const handleGoogleConnect = async () => {
     setConnecting(true);
     try {
-      const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'focusflow',
+        preferLocalhost: true,
+      });
+
+      console.log('Redirect URI:', redirectUri);
+
       const authRequest = new AuthSession.AuthRequest({
         clientId: GOOGLE_CLIENT_ID,
         scopes: [
           'https://www.googleapis.com/auth/calendar.readonly',
           'https://www.googleapis.com/auth/gmail.readonly',
           'https://www.googleapis.com/auth/userinfo.email',
+          'https://www.googleapis.com/auth/userinfo.profile',
         ],
         redirectUri,
         responseType: AuthSession.ResponseType.Token,
+        usePKCE: false,
       });
 
-      const result = await authRequest.promptAsync(discovery);
+      const googleDiscovery = {
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+        revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+      };
+
+      const result = await authRequest.promptAsync(googleDiscovery);
+
+      console.log('Auth result:', JSON.stringify(result, null, 2));
 
       if (result.type === 'success') {
-        const { access_token } = result.params;
-        await connectGoogle({ accessToken: access_token });
-        Alert.alert('✅ Connected!', 'Google Calendar & Gmail linked successfully.');
-      } else if (result.type === 'cancel') {
+        const accessToken = result.params?.access_token || result.authentication?.accessToken;
+        if (accessToken) {
+          await connectGoogle({ accessToken });
+          Alert.alert('✅ Connected!', 'Google Calendar & Gmail linked successfully.');
+        } else {
+          console.error('No access token in result:', result);
+          Alert.alert('Error', 'No access token received. Check console for details.');
+        }
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
         // User cancelled, do nothing
       } else {
-        Alert.alert('Connection Failed', 'Could not connect to Google. Please try again.');
+        console.error('Auth failed:', result);
+        Alert.alert('Connection Failed', `Could not connect to Google. Result type: ${result.type}`);
       }
     } catch (error) {
       console.error('Google Auth Error:', error);
-      Alert.alert('Error', 'Something went wrong connecting to Google.');
+      Alert.alert('Error', `Something went wrong: ${error.message}`);
     } finally {
       setConnecting(false);
     }

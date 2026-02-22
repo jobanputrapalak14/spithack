@@ -12,6 +12,7 @@ import SmartCaptureScreen from './src/screens/SmartCaptureScreen';
 import WorkspaceScreen from './src/screens/WorkspaceScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -23,16 +24,37 @@ export default function App() {
           initialRouteName="Splash"
           screenOptions={{
             headerShown: false,
+            animation: 'slide_from_right',
+            animationDuration: 300,
+            gestureEnabled: true,
+            gestureDirection: 'horizontal',
           }}
         >
-          <Stack.Screen name="Splash" component={SplashScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Signup" component={SignupScreen} />
-          <Stack.Screen name="Main" component={MainTabs} />
+          <Stack.Screen
+            name="Splash"
+            component={SplashScreen}
+            options={{ animation: 'fade' }}
+          />
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ animation: 'fade_from_bottom' }}
+          />
+          <Stack.Screen
+            name="Signup"
+            component={SignupScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="Main"
+            component={MainTabs}
+            options={{ animation: 'fade' }}
+          />
           <Stack.Screen
             name="SmartCapture"
             component={SmartCaptureScreen}
             options={{
+              animation: 'slide_from_bottom',
               headerShown: true,
               title: 'Smart Capture',
               headerStyle: { backgroundColor: '#9333ea' },
@@ -43,6 +65,7 @@ export default function App() {
             name="Workspace"
             component={WorkspaceScreen}
             options={{
+              animation: 'slide_from_right',
               headerShown: true,
               title: 'Workspace',
               headerStyle: { backgroundColor: '#9333ea' },
@@ -53,6 +76,7 @@ export default function App() {
             name="EditProfile"
             component={EditProfileScreen}
             options={{
+              animation: 'slide_from_bottom',
               headerShown: true,
               title: 'Edit Profile',
               headerStyle: { backgroundColor: '#9333ea' },

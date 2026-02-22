@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,20 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
+import * as AuthSession from "expo-auth-session";
+
+// 👇 THIS PART
+const redirectUri = AuthSession.makeRedirectUri({
+  useProxy: true,
+});
+
+// 👇 ADD HERE
+console.log("REDIRECT URI:", redirectUri);
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -24,6 +34,23 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const formAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(headerAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(formAnim, {
+      toValue: 1,
+      duration: 500,
+      delay: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
   return (
     <LinearGradient colors={['#eff6ff', '#f3e8ff']} style={styles.container}>
       <KeyboardAvoidingView
@@ -31,15 +58,21 @@ export default function LoginScreen({ navigation }) {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
+          <Animated.View style={[styles.header, {
+            opacity: headerAnim,
+            transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }],
+          }]}>
             <View style={styles.iconWrapper}>
               <Icon name="zap" size={50} color="#9333ea" />
             </View>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Login to continue your productivity journey</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.form}>
+          <Animated.View style={[styles.form, {
+            opacity: formAnim,
+            transform: [{ translateY: formAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }],
+          }]}>
             <View style={styles.inputContainer}>
               <Icon name="mail" size={20} color="#9ca3af" style={styles.inputIcon} />
               <TextInput
@@ -73,7 +106,7 @@ export default function LoginScreen({ navigation }) {
                 <Text style={styles.signupLink}>Sign up</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>

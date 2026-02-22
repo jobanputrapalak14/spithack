@@ -1,4 +1,5 @@
 import os
+import io
 import json
 from datetime import datetime, timedelta
 from openai import AsyncOpenAI
@@ -7,6 +8,61 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+async def transcribe_audio(file_bytes: bytes, filename: str) -> str:
+    """
+    Transcribe audio bytes using OpenAI Whisper API.
+    Returns the transcribed text string.
+    """
+    try:
+        # Whisper expects a file-like object with a name attribute
+        audio_file = io.BytesIO(file_bytes)
+        audio_file.name = filename  # Whisper uses extension to detect format
+
+        transcript = await client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file,
+        )
+        return transcript.text
+    except Exception as e:
+        print(f"⚠️ Audio transcription failed: {e}")
+        return ""
+
+
+def extract_file_text(file_bytes: bytes, filename: str) -> str:
+    """
+    Extract readable text content from common file types.
+    Supports: .txt, .md, .csv, .json, .pdf
+    Returns extracted text or a fallback label for unsupported types.
+    """
+    ext = os.path.splitext(filename)[1].lower()
+
+    # Plain text formats
+    if ext in ('.txt', '.md', '.csv', '.json', '.log', '.py', '.js', '.html'):
+        try:
+            return file_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            return file_bytes.decode('latin-1', errors='ignore')
+
+    # PDF extraction
+    if ext == '.pdf':
+        try:
+            from PyPDF2 import PdfReader
+            reader = PdfReader(io.BytesIO(file_bytes))
+            pages_text = []
+            for page in reader.pages:
+                text = page.extract_text()
+                if text:
+                    pages_text.append(text)
+            return "\n".join(pages_text) if pages_text else f"[PDF file: {filename} - no extractable text]"
+        except Exception as e:
+            print(f"⚠️ PDF extraction failed for {filename}: {e}")
+            return f"[PDF file: {filename} - extraction failed]"
+
+    # Unsupported type — return filename as context
+    return f"[Attached file: {filename}]"
+
 
 async def parse_smart_input(text: str, current_time: datetime) -> dict:
     """

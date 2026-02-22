@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,6 +26,23 @@ export default function SignupScreen({ navigation }) {
     }
   };
 
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const formAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(headerAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(formAnim, {
+      toValue: 1,
+      duration: 500,
+      delay: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
   return (
     <LinearGradient colors={['#eff6ff', '#f3e8ff']} style={styles.container}>
       <KeyboardAvoidingView
@@ -32,15 +50,21 @@ export default function SignupScreen({ navigation }) {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
+          <Animated.View style={[styles.header, {
+            opacity: headerAnim,
+            transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }],
+          }]}>
             <View style={styles.iconWrapper}>
               <Icon name="zap" size={50} color="#9333ea" />
             </View>
             <Text style={styles.title}>Get Started</Text>
             <Text style={styles.subtitle}>Create your account and boost your productivity</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.form}>
+          <Animated.View style={[styles.form, {
+            opacity: formAnim,
+            transform: [{ translateY: formAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }],
+          }]}>
             <View style={styles.inputContainer}>
               <Icon name="user" size={20} color="#9ca3af" style={styles.inputIcon} />
               <TextInput
@@ -84,7 +108,7 @@ export default function SignupScreen({ navigation }) {
                 <Text style={styles.loginLink}>Login</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>

@@ -2,13 +2,14 @@
   "expo": {
     "name": "FocusFlow",
     "slug": "focusflow",
+    "scheme": "focusflow",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#9333ea"
     },

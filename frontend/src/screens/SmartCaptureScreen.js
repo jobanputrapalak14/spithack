@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { Audio } from 'expo-av';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
@@ -17,6 +18,9 @@ export default function SmartCaptureScreen({ navigation }) {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioRecording, setAudioRecording] = useState(null);
+  const [audioUri, setAudioUri] = useState(null);
 
   const isDark = theme === 'dark';
   const colors = isDark
@@ -70,11 +74,42 @@ export default function SmartCaptureScreen({ navigation }) {
   });
   const scrollViewRef = useRef(null);
 
-  // Voice input (placeholder — Expo Go doesn't support native speech recognition)
-  const handleVoiceInput = () => {
-    const voiceText = '[Voice input recorded]';
-    setInputText((prev) => prev ? `${prev} ${voiceText}` : voiceText);
-    Alert.alert('Voice Input', 'Voice recording simulated. In a production build, this would use native speech-to-text.');
+  // Voice input — real audio recording via expo-av
+  const handleVoiceInput = async () => {
+    if (isRecording) {
+      // Stop recording
+      try {
+        await audioRecording.stopAndUnloadAsync();
+        const uri = audioRecording.getURI();
+        setAudioUri(uri);
+        setIsRecording(false);
+        setInputText((prev) => prev ? `${prev} [Voice recorded]` : '[Voice recorded]');
+      } catch (err) {
+        console.error('Stop recording error:', err);
+        setIsRecording(false);
+      }
+    } else {
+      // Start recording
+      try {
+        const permission = await Audio.requestPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission Required', 'Please grant microphone access to record audio.');
+          return;
+        }
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+        const { recording } = await Audio.Recording.createAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY
+        );
+        setAudioRecording(recording);
+        setIsRecording(true);
+      } catch (err) {
+        console.error('Start recording error:', err);
+        Alert.alert('Error', 'Could not start audio recording.');
+      }
+    }
   };
 
   // File attachment
@@ -86,7 +121,7 @@ export default function SmartCaptureScreen({ navigation }) {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        setAttachedFiles((prev) => [...prev, { name: file.name, size: file.size, uri: file.uri }]);
+        setAttachedFiles((prev) => [...prev, { name: file.name, size: file.size, uri: file.uri, mimeType: file.mimeType }]);
         setInputText((prev) => prev ? `${prev} [File: ${file.name}]` : `[File: ${file.name}]`);
       }
     } catch (err) {
@@ -98,20 +133,42 @@ export default function SmartCaptureScreen({ navigation }) {
     setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // AI Analysis via FastAPI backend
+  // AI Analysis via FastAPI backend — sends text + audio + files as FormData
   const handleAnalyze = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() && !audioUri && attachedFiles.length === 0) return;
     setIsAnalyzing(true);
     setChatMessages([
-      { role: 'user', content: inputText },
+      { role: 'user', content: inputText || '[Audio/File input]' },
       { role: 'ai', content: 'Let me analyze your task with AI...' },
     ]);
 
     try {
+      // Build FormData with text, audio, and files
+      const formData = new FormData();
+      formData.append('text', inputText || '');
+
+      // Attach audio recording if available
+      if (audioUri) {
+        formData.append('audio', {
+          uri: audioUri,
+          name: 'voice_recording.m4a',
+          type: 'audio/m4a',
+        });
+      }
+
+      // Attach picked files
+      for (const file of attachedFiles) {
+        formData.append('files', {
+          uri: file.uri,
+          name: file.name,
+          type: file.mimeType || 'application/octet-stream',
+        });
+      }
+
       const response = await fetch(`${API_URL}/capture/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: inputText }),
+        body: formData,
+        // Do NOT set Content-Type header — fetch sets it with the multipart boundary
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const parsedData = await response.json();
@@ -199,6 +256,9 @@ export default function SmartCaptureScreen({ navigation }) {
     setChatMessages([]);
     setInputText('');
     setAttachedFiles([]);
+    setAudioUri(null);
+    setAudioRecording(null);
+    setIsRecording(false);
     setAiPreview({ title: '', deadline: '', category: 'task', priority: 'medium' });
   };
 
@@ -244,8 +304,8 @@ export default function SmartCaptureScreen({ navigation }) {
 
               {/* Action Buttons: Voice & Attach */}
               <View style={styles.inputActions}>
-                <TouchableOpacity style={[styles.iconBtn, { backgroundColor: colors.iconBtn }]} onPress={handleVoiceInput} activeOpacity={0.7}>
-                  <Icon name="mic" size={18} color="#9333ea" />
+                <TouchableOpacity style={[styles.iconBtn, { backgroundColor: isRecording ? '#9333ea' : colors.iconBtn }]} onPress={handleVoiceInput} activeOpacity={0.7}>
+                  <Icon name={isRecording ? 'stop-circle' : 'mic'} size={18} color={isRecording ? '#fff' : '#9333ea'} />
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.iconBtn, { backgroundColor: colors.iconBtn }]} onPress={handleFilePick} activeOpacity={0.7}>
                   <Icon name="paperclip" size={18} color="#9333ea" />

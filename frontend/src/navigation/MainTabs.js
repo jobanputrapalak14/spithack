@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useIsFocused } from '@react-navigation/native';
 import HomeScreen from '../screens/HomeScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import InsightsScreen from '../screens/InsightsScreen';
@@ -26,6 +27,83 @@ function SmartCaptureButton({ children, onPress, isDark }) {
         <Icon name="plus" size={28} color="#fff" />
       </LinearGradient>
     </TouchableOpacity>
+  );
+}
+
+/**
+ * Wrapper that adds a fade + slight slide animation every time a tab is focused.
+ */
+function AnimatedTabScreen({ children }) {
+  const isFocused = useIsFocused();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(18)).current;
+
+  useEffect(() => {
+    if (isFocused) {
+      fadeAnim.setValue(0);
+      slideAnim.setValue(18);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isFocused]);
+
+  return (
+    <Animated.View
+      style={{
+        flex: 1,
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }],
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+// Wrap each screen component in AnimatedTabScreen
+function AnimatedHome(props) {
+  return (
+    <AnimatedTabScreen>
+      <HomeScreen {...props} />
+    </AnimatedTabScreen>
+  );
+}
+function AnimatedCalendar(props) {
+  return (
+    <AnimatedTabScreen>
+      <CalendarScreen {...props} />
+    </AnimatedTabScreen>
+  );
+}
+function AnimatedSmartCapture(props) {
+  return (
+    <AnimatedTabScreen>
+      <SmartCaptureScreen {...props} />
+    </AnimatedTabScreen>
+  );
+}
+function AnimatedInsights(props) {
+  return (
+    <AnimatedTabScreen>
+      <InsightsScreen {...props} />
+    </AnimatedTabScreen>
+  );
+}
+function AnimatedSettings(props) {
+  return (
+    <AnimatedTabScreen>
+      <SettingsScreen {...props} />
+    </AnimatedTabScreen>
   );
 }
 
@@ -66,18 +144,18 @@ export default function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Calendar" component={CalendarScreen} />
+      <Tab.Screen name="Home" component={AnimatedHome} />
+      <Tab.Screen name="Calendar" component={AnimatedCalendar} />
       <Tab.Screen
         name="SmartCapture"
-        component={SmartCaptureScreen}
+        component={AnimatedSmartCapture}
         options={{
           tabBarLabel: () => null,
           tabBarButton: (props) => <SmartCaptureButton {...props} isDark={isDark} />,
         }}
       />
-      <Tab.Screen name="Insights" component={InsightsScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Insights" component={AnimatedInsights} />
+      <Tab.Screen name="Settings" component={AnimatedSettings} />
     </Tab.Navigator>
   );
 }
