@@ -232,8 +232,28 @@ export default function SmartCaptureScreen({ navigation }) {
     }, 800);
   };
 
-  const handleSave = () => {
-    // Parse the deadline back to a Date object
+  const handleSave = async () => {
+    if (aiPreview.category === 'habit') {
+      // Create 21 daily tasks — one per day for 21 consecutive days
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      for (let i = 0; i < 21; i++) {
+        const day = new Date(today);
+        day.setDate(today.getDate() + i);
+        await addTask({
+          title: aiPreview.title,
+          deadline: day,
+          category: 'habit',
+          priority: aiPreview.priority,
+          completed: false,
+        });
+      }
+      Alert.alert('Habit Created!', `"${aiPreview.title}" added for the next 21 days.`);
+      navigation.goBack();
+      return;
+    }
+
+    // Normal task / assignment
     const parts = aiPreview.deadline.split('/');
     let deadlineDate;
     if (parts.length === 3) {

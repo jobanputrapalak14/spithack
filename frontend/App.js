@@ -10,6 +10,8 @@ import SignupScreen from './src/screens/SignupScreen';
 import MainTabs from './src/navigation/MainTabs';
 import SmartCaptureScreen from './src/screens/SmartCaptureScreen';
 import WorkspaceScreen from './src/screens/WorkspaceScreen';
+import ProjectSpaceScreen from './src/screens/ProjectSpaceScreen';
+import ProjectDetailScreen from './src/screens/ProjectDetailScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 
 
@@ -79,6 +81,28 @@ export default function App() {
               animation: 'slide_from_bottom',
               headerShown: true,
               title: 'Edit Profile',
+              headerStyle: { backgroundColor: '#9333ea' },
+              headerTintColor: '#fff',
+            }}
+          />
+          <Stack.Screen
+            name="ProjectSpace"
+            component={ProjectSpaceScreen}
+            options={{
+              animation: 'slide_from_right',
+              headerShown: true,
+              title: 'Project Space',
+              headerStyle: { backgroundColor: '#9333ea' },
+              headerTintColor: '#fff',
+            }}
+          />
+          <Stack.Screen
+            name="ProjectDetail"
+            component={ProjectDetailScreen}
+            options={{
+              animation: 'slide_from_right',
+              headerShown: true,
+              title: 'Project',
               headerStyle: { backgroundColor: '#9333ea' },
               headerTintColor: '#fff',
             }}

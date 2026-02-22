@@ -69,7 +69,7 @@ export default function InsightsScreen() {
   });
   const highPriorityCount = upcomingTasks.filter((t) => t.priority === 'high').length;
   const urgentCount = tasks.filter((t) => !t.completed && t.priority === 'high').length;
-  const burnoutScore = Math.min(100, upcomingTasks.length * 10 + highPriorityCount * 15);
+  const burnoutScore = Math.min(80, upcomingTasks.length * 10 + highPriorityCount * 15);
 
   const getBurnoutLevel = () => {
     if (burnoutScore < 30) return { level: 'Low', color: '#22c55e' };
@@ -78,12 +78,39 @@ export default function InsightsScreen() {
   };
   const burnout = getBurnoutLevel();
 
-  // Habits (mock)
-  const habits = [
-    { name: 'Morning Exercise', streak: 15, category: 'Health' },
-    { name: 'Daily Reading', streak: 8, category: 'Learning' },
-    { name: 'Meditation', streak: 22, category: 'Wellness' },
-  ];
+  // Habits (dynamic — group daily habit tasks by title)
+  const habitTasks = tasks.filter((t) => t.category === 'habit');
+  const habitGroups = {};
+  habitTasks.forEach((h) => {
+    const key = h.title;
+    if (!habitGroups[key]) habitGroups[key] = [];
+    habitGroups[key].push(h);
+  });
+
+  const habits = Object.entries(habitGroups).map(([title, group]) => {
+    // Sort by deadline date ascending
+    const sorted = [...group].sort(
+      (a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+    );
+    // Streak = consecutive completed days from day 1
+    let streak = 0;
+    for (const t of sorted) {
+      if (t.completed) streak++;
+      else break;
+    }
+    const totalDays = sorted.length;
+    const completedDays = sorted.filter((t) => t.completed).length;
+    const progress = totalDays > 0 ? (completedDays / totalDays) * 100 : 0;
+    return {
+      id: sorted[0].id,
+      name: title,
+      streak,
+      goalDays: totalDays,
+      completedDays,
+      progress,
+      allDone: completedDays === totalDays,
+    };
+  });
 
   // Categories
   const categories = ['task', 'assignment', 'habit'];
@@ -182,23 +209,51 @@ export default function InsightsScreen() {
               <View style={styles.cardHeader}>
                 <Icon name="zap" size={20} color="#f97316" />
                 <Text style={[styles.cardTitle, { marginLeft: 8, color: colors.text }]}>Habit Streaks</Text>
+                {habits.length > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{habits.length}</Text>
+                  </View>
+                )}
               </View>
 
-              {habits.map((habit, idx) => (
-                <View key={idx} style={[styles.habitCard, { backgroundColor: colors.habitCard, borderColor: colors.habitBorder }]}>
-                  <View style={styles.habitTopRow}>
-                    <Text style={[styles.habitName, { color: colors.text }]}>{habit.name}</Text>
-                    <Icon name="zap" size={18} color="#f97316" />
-                  </View>
-                  <View style={styles.habitStreakRow}>
-                    <Text style={styles.streakNumber}>{habit.streak}</Text>
-                    <Text style={[styles.streakDays, { color: colors.textSub }]}>days</Text>
-                  </View>
-                  <View style={[styles.habitCategoryTag, colors.categoryTag]}>
-                    <Text style={[styles.habitCategoryText, { color: colors.categoryText }]}>{habit.category}</Text>
-                  </View>
+              {habits.length === 0 ? (
+                <View style={styles.emptyHabits}>
+                  <Icon name="repeat" size={28} color={isDark ? '#6b5b8a' : '#c4b5d4'} />
+                  <Text style={[styles.emptyHabitText, { color: colors.textSub }]}>
+                    No habits yet. Add a task with category "habit" to start tracking!
+                  </Text>
                 </View>
-              ))}
+              ) : (
+                habits.map((habit) => (
+                  <View key={habit.id} style={[styles.habitCard, { backgroundColor: colors.habitCard, borderColor: colors.habitBorder }]}>
+                    <View style={styles.habitTopRow}>
+                      <Text style={[styles.habitName, { color: colors.text }]} numberOfLines={1}>{habit.name}</Text>
+                      {habit.allDone ? (
+                        <View style={styles.habitDoneBadge}>
+                          <Icon name="check" size={12} color="#fff" />
+                          <Text style={styles.habitDoneText}>Done!</Text>
+                        </View>
+                      ) : (
+                        <Icon name="zap" size={18} color="#f97316" />
+                      )}
+                    </View>
+                    <View style={styles.habitStreakRow}>
+                      <Text style={styles.streakNumber}>{habit.streak}</Text>
+                      <Text style={[styles.streakDays, { color: colors.textSub }]}>day streak · {habit.completedDays}/{habit.goalDays} done</Text>
+                    </View>
+                    <View style={[styles.progressBarBg, { backgroundColor: colors.progressBg, marginTop: 4 }]}>
+                      <LinearGradient
+                        colors={habit.allDone ? ['#22c55e', '#16a34a'] : ['#f97316', '#ea580c']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={[styles.progressBarFill, { width: `${Math.max(habit.progress, 2)}%` }]}
+                      />
+                    </View>
+                    <Text style={[styles.habitProgressText, { color: colors.textSub }]}>
+                      {habit.allDone ? '🎉 21-day habit goal complete!' : `${Math.round(habit.progress)}% to goal`}
+                    </Text>
+                  </View>
+                ))
+              )}
             </Animated.View>
 
             {/* ─── Task Categories ─── */}
@@ -310,16 +365,18 @@ const styles = StyleSheet.create({
   habitTopRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  habitName: { fontSize: 16, fontWeight: '700' },
+  habitName: { fontSize: 16, fontWeight: '700', flex: 1, marginRight: 8 },
   habitStreakRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
   streakNumber: { fontSize: 32, fontWeight: '800', color: '#f97316' },
   streakDays: { fontSize: 14, marginLeft: 6 },
-  habitCategoryTag: {
-    alignSelf: 'flex-start', marginTop: 6,
-    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8,
-    borderWidth: 1.5,
+  habitProgressText: { fontSize: 12, marginTop: 4, fontWeight: '500' },
+  habitDoneBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#22c55e', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
   },
-  habitCategoryText: { fontSize: 12, fontWeight: '600' },
+  habitDoneText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  emptyHabits: { alignItems: 'center', paddingVertical: 20 },
+  emptyHabitText: { textAlign: 'center', marginTop: 8, fontSize: 13, lineHeight: 19 },
 
   /* ── Categories ── */
   sectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: 14 },
@@ -335,3 +392,4 @@ const styles = StyleSheet.create({
   categoryStatsValue: { fontSize: 13, fontWeight: '700' },
   categoryRate: { fontSize: 12, textAlign: 'right', marginTop: 2 },
 });
+

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
@@ -37,3 +38,15 @@ def update_task(task_id: str, updates: schemas.TaskUpdate, db: Session = Depends
     db.commit()
     db.refresh(db_task)
     return db_task
+
+@router.delete("/{task_id}")
+def delete_task(task_id: str, db: Session = Depends(get_db)):
+    """Deletes a task from the database."""
+    db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    
+    if not db_task:
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    db.delete(db_task)
+    db.commit()
+    return Response(status_code=204)

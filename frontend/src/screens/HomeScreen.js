@@ -100,6 +100,16 @@ export default function HomeScreen({ navigation }) {
   // All incomplete tasks
   const incompleteTasks = tasks.filter((t) => !t.completed);
 
+  // Today's tasks (due today)
+  const todayTasks = tasks.filter((t) => {
+    const deadline = new Date(t.deadline);
+    return (
+      deadline.getDate() === today.getDate() &&
+      deadline.getMonth() === today.getMonth() &&
+      deadline.getFullYear() === today.getFullYear()
+    );
+  });
+
   // Upcoming tasks (within 7 days)
   const upcomingTasks = tasks.filter((t) => {
     const deadline = new Date(t.deadline);
@@ -174,8 +184,12 @@ export default function HomeScreen({ navigation }) {
     transform: [{ translateY: cardAnims[index].interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
   });
 
-  const needsScheduleScroll = upcomingTasks.length > MAX_VISIBLE_ITEMS;
+  const needsScheduleScroll = todayTasks.length > MAX_VISIBLE_ITEMS;
   const needsReminderScroll = upcomingTasks.length > 3;
+
+  const totalEstMinutes = todayTasks.reduce((sum, t) => sum + (t.estimated_minutes || t.estimatedMinutes || 30), 0);
+  const estHours = Math.floor(totalEstMinutes / 60);
+  const estMins = totalEstMinutes % 60;
 
   return (
     <View style={styles.container}>
@@ -248,24 +262,32 @@ export default function HomeScreen({ navigation }) {
             </Text>
           </Animated.View>
 
-          {/* ─── Today's Schedule ─── */}
+          {/* ─── Today's Work ─── */}
           <Animated.View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }, animatedStyle(1)]}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
                 <LinearGradient colors={colors.sectionIcon} style={styles.sectionIcon}>
                   <Icon name="target" size={16} color="#9333ea" />
                 </LinearGradient>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Schedule</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Work</Text>
               </View>
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{upcomingTasks.length} tasks</Text>
+                <Text style={styles.badgeText}>{todayTasks.length} tasks</Text>
               </View>
             </View>
+            {todayTasks.length > 0 && (
+              <View style={styles.estTimeRow}>
+                <Icon name="clock" size={13} color={colors.textSub} />
+                <Text style={[styles.estTimeText, { color: colors.textSub }]}>
+                  Est. {estHours > 0 ? `${estHours}h ` : ''}{estMins}m total
+                </Text>
+              </View>
+            )}
 
-            {upcomingTasks.length === 0 ? (
+            {todayTasks.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Icon name="check-circle" size={32} color={colors.emptyIcon} />
-                <Text style={[styles.emptyText, { color: colors.textSub }]}>No tasks scheduled. You're all clear! 🎉</Text>
+                <Text style={[styles.emptyText, { color: colors.textSub }]}>No tasks due today. You're all clear! 🎉</Text>
               </View>
             ) : (
               <View style={needsScheduleScroll ? { maxHeight: TASK_ITEM_HEIGHT * MAX_VISIBLE_ITEMS } : undefined}>
@@ -274,7 +296,7 @@ export default function HomeScreen({ navigation }) {
                   showsVerticalScrollIndicator={needsScheduleScroll}
                   scrollEnabled={needsScheduleScroll}
                 >
-                  {upcomingTasks.map((task) => (
+                  {todayTasks.map((task) => (
                     <TouchableOpacity
                       key={task.id}
                       style={[styles.taskItem, { backgroundColor: colors.taskItemBg, borderColor: colors.taskItemBorder }]}
@@ -302,12 +324,17 @@ export default function HomeScreen({ navigation }) {
                         >
                           {task.title}
                         </Text>
-                        <Text style={[styles.taskDate, { color: colors.textSub }]}>Due: {formatDate(task.deadline)}</Text>
-                      </View>
-                      <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(task.priority) }]}>
-                        <Text style={styles.priorityText}>
-                          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                        </Text>
+                        <View style={styles.taskMetaRow}>
+                          <Icon name="clock" size={11} color={colors.textSub} />
+                          <Text style={[styles.taskDate, { color: colors.textSub }]}>
+                            {task.estimated_minutes || task.estimatedMinutes || 30} min
+                          </Text>
+                          <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(task.priority) }]}>
+                            <Text style={styles.priorityText}>
+                              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
                       <Icon name="chevron-right" size={16} color={colors.emptyIcon} style={{ marginLeft: 8 }} />
                     </TouchableOpacity>
@@ -456,23 +483,23 @@ export default function HomeScreen({ navigation }) {
             ))}
           </Animated.View>
 
-          {/* ─── Quick Add Task ─── */}
+          {/* ─── Open Project Space ─── */}
           <Animated.View style={animatedStyle(4)}>
             <TouchableOpacity
-              onPress={() => navigation.navigate('SmartCapture')}
-              activeOpacity={0.85}
+              style={[styles.projectSpaceCard, { backgroundColor: isDark ? 'rgba(147,51,234,0.12)' : 'rgba(147,51,234,0.08)', borderColor: isDark ? 'rgba(147,51,234,0.2)' : 'rgba(147,51,234,0.1)' }]}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('ProjectSpace')}
             >
-              <LinearGradient
-                colors={['#c084fc', '#9333ea', '#7c3aed']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.quickAddButton}
-              >
-                <Icon name="plus" size={20} color="#fff" />
-                <Text style={styles.quickAddText}>Quick Add Task</Text>
-              </LinearGradient>
+              <View style={styles.projectSpaceDots}>
+                <View style={[styles.psDot, { backgroundColor: '#22c55e' }]} />
+                <View style={[styles.psDot, { backgroundColor: '#f97316' }]} />
+                <View style={[styles.psDot, { backgroundColor: '#9333ea' }]} />
+              </View>
+              <Text style={[styles.projectSpaceText, { color: colors.text }]}>Open Project Space</Text>
+              <Icon name="chevron-right" size={20} color={colors.textSub} />
             </TouchableOpacity>
           </Animated.View>
+
 
           <View style={{ height: 30 }} />
         </ScrollView>
@@ -625,6 +652,9 @@ const styles = StyleSheet.create({
   taskTitle: { fontSize: 14, fontWeight: '600' },
   taskTitleCompleted: { textDecorationLine: 'line-through', color: '#9ca3af' },
   taskDate: { fontSize: 11, marginTop: 1 },
+  taskMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  estTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8, paddingLeft: 2 },
+  estTimeText: { fontSize: 12, fontWeight: '500' },
   priorityBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7 },
   priorityText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
 
@@ -711,4 +741,20 @@ const styles = StyleSheet.create({
   emailSender: { fontSize: 12, fontWeight: '500', marginBottom: 2 },
   emailSubject: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
   emailSnippet: { fontSize: 12 },
+
+  /* ── Project Space Card ── */
+  projectSpaceCard: {
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: 20, marginTop: 14,
+    padding: 16, borderRadius: 16, borderWidth: 1,
+  },
+  projectSpaceDots: {
+    flexDirection: 'row', gap: 4, marginRight: 12,
+  },
+  psDot: {
+    width: 10, height: 10, borderRadius: 5,
+  },
+  projectSpaceText: {
+    flex: 1, fontSize: 16, fontWeight: '700',
+  },
 });

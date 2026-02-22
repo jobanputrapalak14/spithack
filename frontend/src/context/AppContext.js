@@ -8,6 +8,7 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [theme, setTheme] = useState('light');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -25,11 +26,13 @@ export function AppProvider({ children }) {
   const loadData = async () => {
     try {
       // 1. Load local data (User, Notes, Theme)
-      const [userData, notesData, themeData, googleTokenData] = await Promise.all([
+      const [userData, notesData, themeData, googleTokenData, projectsData, projectMappingsData] = await Promise.all([
         AsyncStorage.getItem('focusflow-user'),
         AsyncStorage.getItem('focusflow-notes'),
         AsyncStorage.getItem('focusflow-theme'),
         AsyncStorage.getItem('focusflow-google-tokens'),
+        AsyncStorage.getItem('focusflow-projects'),
+        AsyncStorage.getItem('focusflow-project-mappings'),
       ]);
 
       if (userData) setUser(JSON.parse(userData));
@@ -39,16 +42,20 @@ export function AppProvider({ children }) {
         const tokens = JSON.parse(googleTokenData);
         setGoogleTokens(tokens);
       }
+      if (projectsData) setProjects(JSON.parse(projectsData));
 
       // 2. Fetch Tasks from FastAPI Backend
       try {
         const response = await fetch(`${API_URL}/tasks/`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
+        // Merge projectId from local mappings
+        const mappings = projectMappingsData ? JSON.parse(projectMappingsData) : {};
         const fetchedTasks = data.map((t) => ({
           ...t,
           deadline: new Date(t.deadline),
           createdAt: new Date(t.created_at || t.createdAt),
+          projectId: mappings[t.id] || null,
         }));
         setTasks(fetchedTasks);
       } catch (apiError) {
@@ -77,9 +84,14 @@ export function AppProvider({ children }) {
   }, [user, isLoading]);
 
   // Save tasks locally as a fallback just in case the backend crashes
+  // Also save project-to-task mappings
   useEffect(() => {
     if (!isLoading && tasks.length > 0) {
       AsyncStorage.setItem('focusflow-tasks-fallback', JSON.stringify(tasks));
+      // Save projectId mappings
+      const mappings = {};
+      tasks.forEach((t) => { if (t.projectId) mappings[t.id] = t.projectId; });
+      AsyncStorage.setItem('focusflow-project-mappings', JSON.stringify(mappings));
     }
   }, [tasks, isLoading]);
 
@@ -89,6 +101,13 @@ export function AppProvider({ children }) {
       AsyncStorage.setItem('focusflow-notes', JSON.stringify(notes));
     }
   }, [notes, isLoading]);
+
+  // Save projects locally
+  useEffect(() => {
+    if (!isLoading) {
+      AsyncStorage.setItem('focusflow-projects', JSON.stringify(projects));
+    }
+  }, [projects, isLoading]);
 
   // Save theme locally
   useEffect(() => {
@@ -158,10 +177,11 @@ export function AppProvider({ children }) {
   // API Call: Add Task
   const addTask = async (task) => {
     try {
-      // Ensure deadline is an ISO string before sending
+      // Keep projectId for local state but strip it from API payload
+      const { projectId, ...taskData } = task;
       const payload = {
-        ...task,
-        deadline: task.deadline instanceof Date ? task.deadline.toISOString() : task.deadline
+        ...taskData,
+        deadline: taskData.deadline instanceof Date ? taskData.deadline.toISOString() : taskData.deadline
       };
 
       const response = await fetch(`${API_URL}/tasks/`, {
@@ -176,6 +196,7 @@ export function AppProvider({ children }) {
         ...data,
         deadline: new Date(data.deadline),
         createdAt: new Date(data.created_at || new Date()),
+        projectId: task.projectId || null,
       };
 
       setTasks((prev) => [...prev, newTask]);
@@ -224,6 +245,31 @@ export function AppProvider({ children }) {
     }
   };
 
+  // ─── Project CRUD (local-only) ───
+  const addProject = (name) => {
+    const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+    const newProject = {
+      id: Date.now().toString(),
+      name,
+      color: colors[projects.length % colors.length],
+    };
+    setProjects((prev) => [...prev, newProject]);
+    return newProject;
+  };
+
+  const updateProject = (id, updates) => {
+    setProjects((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
+    );
+  };
+
+  const deleteProject = (id) => {
+    // Also remove tasks associated with this project
+    const projectTaskIds = tasks.filter((t) => t.projectId === id).map((t) => t.id);
+    projectTaskIds.forEach((taskId) => deleteTask(taskId));
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+  };
+
   const addNote = (note) => {
     const newNote = {
       ...note,
@@ -263,11 +309,14 @@ export function AppProvider({ children }) {
     setGoogleTokens(null);
     setGoogleCalendarEvents([]);
     setGoogleEmails([]);
+    setProjects([]);
     await AsyncStorage.multiRemove([
       'focusflow-user',
       'focusflow-notes',
       'focusflow-tasks-fallback',
       'focusflow-google-tokens',
+      'focusflow-projects',
+      'focusflow-project-mappings',
     ]);
   };
 
@@ -282,6 +331,10 @@ export function AppProvider({ children }) {
         deleteTask,
         notes,
         addNote,
+        projects,
+        addProject,
+        updateProject,
+        deleteProject,
         theme,
         setTheme,
         isAuthenticated: !!user,
