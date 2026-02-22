@@ -18,7 +18,6 @@ import { useApp } from '../context/AppContext';
 // ⭐ GOOGLE AUTH IMPORTS
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from "expo-auth-session";
 
 // Required to close the web browser popup after login
 WebBrowser.maybeCompleteAuthSession();
@@ -26,53 +25,43 @@ WebBrowser.maybeCompleteAuthSession();
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useApp();
 
-  // ⭐ 1. GET EXACT REDIRECT URI
-  const currentRedirectUri = AuthSession.makeRedirectUri();
+  // ⭐ 1. EXTRACT connectGoogle FROM CONTEXT
+  const { login, connectGoogle } = useApp();
 
-  // ⭐ 2. GOOGLE AUTH HOOK (WITH OFFLINE ACCESS FOR REFRESH TOKEN)
+  // ⭐ 2. SIMPLE GOOGLE AUTH HOOK (GETS DIRECT ACCESS TOKEN)
   const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: '1058825657468-v0g6smcjlgkqplrce4pblm21dj3pp939.apps.googleusercontent.com', // From your screenshot
-    redirectUri: currentRedirectUri,
+    webClientId: '1058825657468-v0g6smcjlgkqplrce4pblm21dj3pp939.apps.googleusercontent.com',
+
+    // 🔥 Use localhost for Web testing
+    redirectUri: 'http://localhost:8081',
+
     scopes: [
       'profile',
       'email',
       'https://www.googleapis.com/auth/calendar',
       'https://www.googleapis.com/auth/gmail.readonly'
     ],
-    offlineAccess: true, // 🔥 This forces Google to send the 'code' so backend gets the refresh_token
   });
 
-  // ⭐ 3. HANDLE GOOGLE RESPONSE
+  // ⭐ 3. HANDLE GOOGLE RESPONSE & SAVE FRESH TOKEN
   useEffect(() => {
-    // Print this so you can copy it to Google Cloud Console!
-    console.log("🚨 MY EXACT REDIRECT URI IS:", currentRedirectUri);
-
     if (response?.type === 'success') {
-      const authCode = response.params.code;
-      console.log("Got Auth Code:", authCode);
+      // Grab the fresh 1-hour token directly from Google's response
+      const freshToken = response.authentication?.accessToken;
+      console.log("Got Fresh Token:", freshToken);
 
-      // ⚠️ REPLACE 192.168.X.X WITH YOUR ACTUAL COMPUTER IP
-      fetch("http://192.168.X.X:8000/api/google/verify-token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: authCode,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          console.log("Backend Success:", data);
-          Alert.alert("Success", "Google Connected!");
-          navigation.replace('Main');
-        })
-        .catch((err) => {
-          console.error("Backend Error:", err);
-          Alert.alert("Error", "Could not connect to backend");
-        });
+      if (freshToken) {
+        // 🔥 MAGIC LINE: Save the fresh token directly to your app state!
+        connectGoogle({ accessToken: freshToken });
+
+        Alert.alert("Success", "Google Connected!");
+        navigation.replace('Main');
+      } else {
+        Alert.alert("Error", "Did not receive access token from Google.");
+      }
+    } else if (response?.type === 'error') {
+      Alert.alert("Error", "Google login failed.");
     }
   }, [response]);
 
